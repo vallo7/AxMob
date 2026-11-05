@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="TurretData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/turret_data.gd" id="1_s"]
+[ext_resource type="Resource" path="res://resources/turrets/axe_rapid.tres" id="2_e"]
+
+[resource]
+script = ExtResource("1_s")
+id = &"rapid"
+display_name = "Rapid"
+damage = 8.0
+fire_rate = 3.0
+attack_range = 13.0
+rotation_speed = 6.5
+axe_count = 1
+fan_angle_deg = 0.0
+pierce = 0
+color = Color(0.93, 0.47, 0.12, 1)
+projectile = ExtResource("2_e")

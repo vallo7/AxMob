@@ -7,6 +7,7 @@ config/name="AxMob"
 config/description="AxMob - ValloGame"
 run/main_scene="res://scenes/boot/boot.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+config/quit_on_go_back=false
 run/max_fps=60
 
 [autoload]
@@ -31,6 +32,10 @@ window/size/window_height_override=640
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep_width"
 window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
 
 [rendering]
 

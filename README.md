@@ -1,6 +1,6 @@
 # AxMob — ValloGame
 
-Arena survival 3D (Godot 4.7.2, GDScript typé, Android portrait). Plan : voir `docs/PHASE0.md`.
+Arena survival 3D (Godot 4.7.2, GDScript typé, Android portrait). Rapports : `docs/PHASE0.md`, `docs/PHASE2.md` (prototype jouable).
 
 ## Démarrer en local
 ```bash
@@ -24,3 +24,11 @@ pip install bpy==5.2.3 && python blender/source/axe_light.py && cp blender/expor
 - Animations Blender bouclées : nommer l'action `xxx-loop` ; Godot l'importe en `xxx` avec boucle linéaire.
 - Le dossier `blender/` est ignoré par Godot (`.gdignore`) ; seuls les GLB copiés dans `assets/models/` sont importés.
 - Budgets d'assets : `assets/budgets.json`.
+
+## Prototype (phase 2)
+```bash
+godot --headless --script res://scripts/tests/run_tests.gd     # noyau + scénarios de gameplay
+xvfb-run -a godot --rendering-driver opengl3 --resolution 540x960 \
+  --path . res://scenes/tools/capture.tscn -- /tmp/shots       # captures de contrôle (bot)
+```
+Équilibrage : `resources/balancing/*.tres`, `resources/enemies/*.tres`, `resources/turrets/*.tres`.

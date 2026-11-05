@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="TurretData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/turret_data.gd" id="1_s"]
+[ext_resource type="Resource" path="res://resources/turrets/axe_heavy.tres" id="2_e"]
+
+[resource]
+script = ExtResource("1_s")
+id = &"heavy"
+display_name = "Heavy"
+damage = 40.0
+fire_rate = 0.6
+attack_range = 13.0
+rotation_speed = 3.5
+axe_count = 1
+fan_angle_deg = 0.0
+pierce = 0
+color = Color(0.8, 0.3, 0.1, 1)
+projectile = ExtResource("2_e")

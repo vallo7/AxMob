@@ -16,3 +16,10 @@ signal wave_completed(wave: int)
 signal boss_spawned
 signal game_over(wave: int, coins: int)
 signal rewarded_ad_completed
+
+# Ajouts de la phase 2 (communication entre systèmes de partie sans dépendance directe)
+signal contact_detected(contacts: int, position: Vector3)
+signal turret_fired(turret_id: int, data: TurretData, origin: Vector2, direction: Vector2)
+signal axe_hit(enemy_id: int, raw_damage: float, category: int, direction: Vector2)
+signal enemy_attack_landed(damage: float, source: Vector2)
+signal enemy_spawn_requested(data: EnemyData, position: Vector2, hp_mult: float, damage_mult: float)
