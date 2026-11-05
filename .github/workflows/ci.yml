@@ -1,0 +1,32 @@
+name: CI
+on:
+  push:
+  pull_request:
+env:
+  GODOT_VERSION: "4.7.2"
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Installer Godot
+        run: scripts/ci/setup_godot.sh
+      - name: Lint et format GDScript
+        run: |
+          pip install gdtoolkit==4.5.0
+          gdformat --check scripts scenes
+          gdlint scripts scenes
+      - name: Importer le projet
+        run: godot --headless --import
+      - name: Tests headless
+        run: godot --headless --script res://scripts/tests/run_tests.gd
+      - name: Budgets d'assets
+        run: godot --headless --script res://scripts/tools/validate_assets.gd
+      - name: Benchmark de la grille (CSV en artefact)
+        run: |
+          mkdir -p reports
+          godot --headless --script res://scripts/tools/bench_grid.gd | grep '\[bench\]' | tee reports/bench_grid.txt
+      - uses: actions/upload-artifact@v4
+        with: { name: reports, path: reports }
