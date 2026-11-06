@@ -1,0 +1,3 @@
+{
+  "axe_light": {"max_tris": 500, "max_size": 1.5, "animations": ["spin"], "loop": ["spin"], "max_materials": 3}
+}

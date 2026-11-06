@@ -1,0 +1,19 @@
+name: Blender export
+on:
+  workflow_dispatch:
+  push:
+    paths: ["blender/source/**"]
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: Installer bpy (module pip, headless)
+        run: pip install bpy==5.2.3
+      - name: Exécuter les scripts de modélisation
+        run: |
+          for f in blender/source/*.py; do python "$f"; done
+      - uses: actions/upload-artifact@v4
+        with: { name: glb-exports, path: "blender/export/*.glb" }

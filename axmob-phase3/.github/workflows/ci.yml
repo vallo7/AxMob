@@ -1,0 +1,44 @@
+name: CI
+on:
+  push:
+  pull_request:
+env:
+  GODOT_VERSION: "4.7.2"
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Installer Godot
+        run: scripts/ci/setup_godot.sh
+      - name: Lint et format GDScript
+        run: |
+          pip install gdtoolkit==4.5.0
+          gdformat --check scripts scenes
+          gdlint scripts scenes
+      - name: Importer le projet
+        run: godot --headless --import
+      - name: Tests headless
+        run: godot --headless --script res://scripts/tests/run_tests.gd
+      - name: Simulation d'équilibrage (CSV en artefact)
+        run: |
+          mkdir -p reports
+          godot --headless --script res://scripts/tools/simulate_runs.gd -- --runs 4 --seconds 300 --seed 1000 --out reports/balance | grep '\[balance\]'
+          godot --headless --script res://scripts/tools/simulate_runs.gd -- --runs 2 --seconds 600 --seed 2000 --god 1 --out reports/balance_god | grep '\[balance\]'
+      - name: Budgets d'assets
+        run: godot --headless --script res://scripts/tools/validate_assets.gd
+      - name: Benchmark de la grille (CSV en artefact)
+        run: |
+          mkdir -p reports
+          godot --headless --script res://scripts/tools/bench_grid.gd | grep '\[bench\]' | tee reports/bench_grid.txt
+      - name: Captures de contrôle (rendu logiciel, informatif)
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri libglx-mesa0 libxcursor1 libxinerama1 libxi6 libxrandr2
+          mkdir -p reports/shots
+          xvfb-run -a -s "-screen 0 1280x2000x24" godot --rendering-driver opengl3 --resolution 540x960 --path . res://scenes/tools/capture.tscn -- "$PWD/reports/shots"
+      - uses: actions/upload-artifact@v4
+        with: { name: reports, path: reports }
