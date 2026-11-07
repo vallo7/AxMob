@@ -29,8 +29,20 @@ jobs:
           godot --headless --import
           mkdir -p build
           godot --headless --export-debug "Android" build/axmob-debug.apk
+      # Phase 4 : le « rien ne vibre » de la phase 3 doit pouvoir être éliminé objectivement.
+      # La permission VIBRATE est lue DANS l'APK produit ; le build échoue si elle manque.
+      - name: Vérifier les permissions de l'APK (VIBRATE obligatoire)
+        run: |
+          AAPT2="$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)"
+          "$AAPT2" dump permissions build/axmob-debug.apk | tee build/permissions.txt
+          grep -q "android.permission.VIBRATE" build/permissions.txt \
+            || { echo "::error::permission VIBRATE absente de l'APK"; exit 1; }
       - uses: actions/upload-artifact@v4
-        with: { name: axmob-debug-apk, path: build/axmob-debug.apk }
+        with:
+          name: axmob-debug-apk
+          path: |
+            build/axmob-debug.apk
+            build/permissions.txt
   aab-release:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04

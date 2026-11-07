@@ -13,6 +13,8 @@ run/max_fps=60
 [autoload]
 
 EventBus="*res://scripts/core/event_bus.gd"
+UIManager="*res://scripts/managers/ui_manager.gd"
+Haptics="*res://scripts/haptics/haptics.gd"
 
 [debug]
 

@@ -22,6 +22,11 @@ jobs:
         run: godot --headless --import
       - name: Tests headless
         run: godot --headless --script res://scripts/tests/run_tests.gd
+      - name: Simulation d'équilibrage (CSV en artefact)
+        run: |
+          mkdir -p reports
+          godot --headless --script res://scripts/tools/simulate_runs.gd -- --runs 4 --seconds 300 --seed 1000 --out reports/balance | grep '\[balance\]'
+          godot --headless --script res://scripts/tools/simulate_runs.gd -- --runs 2 --seconds 600 --seed 2000 --god 1 --out reports/balance_god | grep '\[balance\]'
       - name: Budgets d'assets
         run: godot --headless --script res://scripts/tools/validate_assets.gd
       - name: Benchmark de la grille (CSV en artefact)

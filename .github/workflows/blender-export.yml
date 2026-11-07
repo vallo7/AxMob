@@ -14,6 +14,14 @@ jobs:
         run: pip install bpy==5.2.3
       - name: Exécuter les scripts de modélisation
         run: |
-          for f in blender/source/*.py; do python "$f"; done
+          # lib/ (bibliothèque ax.py) est un sous-dossier : seuls les scripts d'asset sont lancés.
+          # Chaque script écrit blender/export/*.glb|.blend et assets/models/*.glb ; l'arène écrit
+          # aussi assets/textures/sand.png, et la bibliothèque assets/textures/palette.png.
+          for f in blender/source/*.py; do echo "== $f"; python "$f"; done
       - uses: actions/upload-artifact@v4
-        with: { name: glb-exports, path: "blender/export/*.glb" }
+        with:
+          name: glb-exports
+          path: |
+            blender/export/*.glb
+            blender/export/*.blend
+            assets/textures/*.png

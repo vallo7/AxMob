@@ -15,13 +15,20 @@ var _retarget_acc: float = 0.0
 
 func setup(ctx: RunContext, datas: Array[TurretData]) -> void:
 	_ctx = ctx
+	ctx.set_turrets(datas)
 	for i: int in datas.size():
 		var angle: float = deg_to_rad(-45.0 + 90.0 * float(i))
-		var slot: Vector2 = Vector2(cos(angle), sin(angle)) * ctx.config.turret_ring_radius
+		var slot: Vector2 = Vector2(cos(angle), sin(angle)) * ctx.config.ring_radius()
 		var turret: Turret = TURRET_SCENE.instantiate() as Turret
 		add_child(turret)
 		turret.setup(i, datas[i], ctx, slot)
 		turrets.append(turret)
+	EventBus.turret_upgraded.connect(_on_turret_upgraded)
+
+
+func _on_turret_upgraded(turret_id: int, level: int) -> void:
+	if turret_id >= 0 and turret_id < turrets.size():
+		turrets[turret_id].apply_level(level)
 
 
 func step(dt: float) -> void:
@@ -59,7 +66,7 @@ func _retarget() -> void:
 
 func _candidates_for(turret: Turret) -> PackedInt32Array:
 	var out: PackedInt32Array = PackedInt32Array()
-	for id: int in _ctx.grid.query_circle(turret.pos2, turret.data.attack_range):
+	for id: int in _ctx.grid.query_circle(turret.pos2, turret.stats.attack_range):
 		if _ctx.enemies.slots[id].is_hittable():
 			out.append(id)
 	return out
@@ -73,7 +80,7 @@ func _choose(turret: Turret, cands: PackedInt32Array, assigned: PackedInt32Array
 		var e: Enemy = _ctx.enemies.slots[id]
 		var s: float = TargetScorer.score(
 			e.pos.distance_to(turret.pos2),
-			turret.data.attack_range,
+			turret.stats.attack_range,
 			e.health.fraction(),
 			e.pos.distance_to(_ctx.player_pos),
 			assigned[id],

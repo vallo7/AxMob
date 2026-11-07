@@ -13,7 +13,7 @@ signal coins_changed(total: int)
 signal turret_upgraded(turret_id: int, level: int)
 signal wave_started(wave: int)
 signal wave_completed(wave: int)
-signal boss_spawned
+signal boss_spawned(enemy_id: int)
 signal game_over(wave: int, coins: int)
 signal rewarded_ad_completed
 
@@ -22,4 +22,11 @@ signal contact_detected(contacts: int, position: Vector3)
 signal turret_fired(turret_id: int, data: TurretData, origin: Vector2, direction: Vector2)
 signal axe_hit(enemy_id: int, raw_damage: float, category: int, direction: Vector2)
 signal enemy_attack_landed(damage: float, source: Vector2)
-signal enemy_spawn_requested(data: EnemyData, position: Vector2, hp_mult: float, damage_mult: float)
+signal enemy_spawn_requested(data: EnemyData, position: Vector2, level: int)
+
+# Ajouts de la phase 3 (boss, améliorations, retour haptique)
+signal boss_warning(wave: int, seconds: float, position: Vector2)
+signal boss_phase_changed(enemy_id: int, phase: int)
+signal boss_defeated(enemy_id: int, reward: int)
+signal shockwave(position: Vector2, radius: float)
+signal upgrade_denied(turret_id: int)

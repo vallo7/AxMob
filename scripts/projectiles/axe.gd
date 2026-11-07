@@ -17,4 +17,8 @@ var spin: float = 0.0
 var spin_speed: float = 0.0
 var born: float = 0.0
 var hit_ids: PackedInt32Array = PackedInt32Array()
+## Support du modèle (position, rotation, échelle) ; ses enfants sont les modèles par catégorie,
+## créés à la demande : un seul est visible à la fois.
 var visual: Node3D
+var models: Dictionary = {}  # nom de modèle -> Node3D
+var shown: Node3D

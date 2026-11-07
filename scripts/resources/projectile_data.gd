@@ -14,3 +14,9 @@ enum Category { RAPID, HEAVY, MULTI, PIERCE }
 @export var lifetime: float = 1.6
 @export var spin_speed: float = 18.0
 @export var visual_scale: float = 1.0
+## Modèle glTF (assets/models/<nom>.glb). Vide = identifiant de la hache.
+@export var model_name: String = ""
+
+
+func model() -> String:
+	return model_name if model_name != "" else str(id)

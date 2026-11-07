@@ -56,7 +56,7 @@ func test_budget_grows_monotonically() -> void:
 func test_data_registry_loads_everything() -> void:
 	t.call("check", DataRegistry.config() != null)
 	t.call("check", DataRegistry.balance() != null)
-	t.call("check", DataRegistry.enemies().size() == 3)
+	t.call("check", DataRegistry.enemies().size() == 4)
 	var turrets: Array[TurretData] = DataRegistry.turrets()
 	t.call("check", turrets.size() == 4)
 	var categories: Dictionary = {}

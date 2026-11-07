@@ -6,6 +6,8 @@ extends Control
 
 var vector: Vector2 = Vector2.ZERO
 var enabled: bool = true
+## Zones d'écran (panneaux ouverts) où un toucher ne démarre jamais le joystick.
+var exclusion_rects: Array[Rect2] = []
 
 var _cfg: GameConfig
 var _touch_index: int = -1
@@ -54,6 +56,9 @@ func release() -> void:
 
 
 func _in_zone(p: Vector2) -> bool:
+	for rect: Rect2 in exclusion_rects:
+		if rect.has_point(p):
+			return false
 	return p.y > get_viewport_rect().size.y * _cfg.joystick_zone_top
 
 

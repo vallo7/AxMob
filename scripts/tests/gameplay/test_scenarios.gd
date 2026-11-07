@@ -32,7 +32,7 @@ func _spawn_basic(g: Gameplay, gap: float, angle: float = 0.0) -> Enemy:
 	var data: EnemyData = DataRegistry.enemies()[0]
 	var dist: float = g.ctx.config.player_radius + data.radius + gap
 	var em: EnemyManager = g.get_node("World/Enemies") as EnemyManager
-	var id: int = em.spawn(data, g.ctx.player_pos + Vector2.from_angle(angle) * dist, 1.0, 1.0)
+	var id: int = em.spawn(data, g.ctx.player_pos + Vector2.from_angle(angle) * dist)
 	var e: Enemy = g.ctx.enemies.slots[id]
 	e.state = Enemy.State.CHASE
 	e.state_time = 0.0
@@ -151,7 +151,7 @@ func test_stress_full_cap_and_invariants() -> void:
 	for i: int in cap:
 		var angle: float = float(i) * 2.399
 		var ring: float = 3.0 + float(i % 5) * 1.0
-		em.spawn(types[i % types.size()], Vector2.from_angle(angle) * ring, 1.0, 1.0)
+		em.spawn(types[i % types.size()], Vector2.from_angle(angle) * ring)
 	t.call("check", g.ctx.enemies.find_free() == -1, "pool d'ennemis plein (%d)" % cap)
 	var arena_r: float = g.ctx.config.arena_radius
 	var inside: bool = true

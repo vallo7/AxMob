@@ -12,4 +12,4 @@ max_speed = 26.0
 radius = 0.55
 lifetime = 2.2
 spin_speed = 9.0
-visual_scale = 2.4
+visual_scale = 1.8

@@ -4,8 +4,7 @@ extends Node3D
 ## Collision par balayage de cercle contre la SpatialGrid : un seul impact par ennemi et
 ## par hache, pas d'effet tunnel. Les dégâts sont appliqués par l'EnemyManager (via EventBus).
 
-const AXE_MODEL: PackedScene = preload("res://assets/models/axe_light.glb")
-const MAX_ENEMY_RADIUS: float = 1.0
+const MAX_ENEMY_RADIUS: float = 1.6
 const BOUNDS_MARGIN: float = 2.5
 
 var _ctx: RunContext
@@ -16,7 +15,7 @@ func setup(ctx: RunContext) -> void:
 	_ctx = ctx
 	for i: int in ctx.config.axe_pool_size:
 		var a: Axe = Axe.new()
-		a.visual = AXE_MODEL.instantiate() as Node3D
+		a.visual = Node3D.new()
 		a.visual.visible = false
 		add_child(a.visual)
 		_axes.append(a)
@@ -38,35 +37,37 @@ func step(dt: float) -> void:
 
 
 func _on_turret_fired(
-	_turret_id: int, data: TurretData, origin: Vector2, direction: Vector2
+	turret_id: int, data: TurretData, origin: Vector2, direction: Vector2
 ) -> void:
-	var count: int = maxi(data.axe_count, 1)
+	var stats: TurretLevelData = _ctx.turret_stats(turret_id)
+	var count: int = maxi(stats.axe_count, 1)
 	for i: int in count:
 		var angle: float = 0.0
 		if count > 1:
-			angle = deg_to_rad(data.fan_angle_deg) * (float(i) / float(count - 1) - 0.5)
-		_spawn(data, origin, direction.rotated(angle))
+			angle = deg_to_rad(stats.fan_angle_deg) * (float(i) / float(count - 1) - 0.5)
+		_spawn(data, stats, origin, direction.rotated(angle))
 
 
-func _spawn(data: TurretData, origin: Vector2, direction: Vector2) -> void:
+func _spawn(data: TurretData, stats: TurretLevelData, origin: Vector2, direction: Vector2) -> void:
 	var a: Axe = _acquire()
 	var p: ProjectileData = data.projectile
 	a.active = true
 	a.pos = origin
 	a.dir = direction.normalized()
-	a.speed = p.speed
+	a.speed = p.speed * stats.projectile_speed_mult
 	a.acceleration = p.acceleration
-	a.max_speed = p.max_speed
+	a.max_speed = p.max_speed * stats.projectile_speed_mult
 	a.radius = p.radius
-	a.damage = data.damage
+	a.damage = stats.damage
 	a.category = p.category
 	a.life_left = p.lifetime
-	a.pierce_left = data.pierce
+	a.pierce_left = stats.pierce
 	a.spin = 0.0
 	a.spin_speed = p.spin_speed
 	a.born = _ctx.time
 	a.hit_ids.clear()
 	a.visual.scale = Vector3.ONE * p.visual_scale
+	_show_model(a, p.model())
 	a.visual.visible = true
 	_sync_visual(a)
 
@@ -110,6 +111,23 @@ func _step_axe(a: Axe, dt: float) -> void:
 		_deactivate(a)
 		return
 	_sync_visual(a)
+
+
+## Affiche le modèle de la catégorie (créé au premier usage sur cet emplacement).
+func _show_model(a: Axe, model_name: String) -> void:
+	var model: Node3D = a.models.get(model_name) as Node3D
+	if model == null:
+		var rig: ModelRig = ModelRig.create(model_name)
+		if rig == null:
+			return
+		model = rig.root
+		a.visual.add_child(model)
+		a.models[model_name] = model
+	if a.shown != model:
+		if a.shown != null:
+			a.shown.visible = false
+		a.shown = model
+	model.visible = true
 
 
 func _deactivate(a: Axe) -> void:

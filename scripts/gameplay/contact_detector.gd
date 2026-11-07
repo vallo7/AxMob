@@ -5,7 +5,7 @@ extends Node
 ## l'anneau de dégâts, donc frôler un ennemi active les tourelles sans forcément blesser.
 ## Filtre anti-répétition : un ennemi ne redéclenche qu'après `contact_rearm` secondes.
 
-const MAX_ENEMY_RADIUS: float = 1.0
+const MAX_ENEMY_RADIUS: float = 1.6
 
 var _ctx: RunContext
 

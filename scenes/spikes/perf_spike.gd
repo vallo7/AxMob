@@ -18,6 +18,7 @@ var _label: Label
 
 
 func _ready() -> void:
+	UIManager.push_back(self, _on_back)
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	var cyl: CylinderMesh = CylinderMesh.new()
@@ -51,6 +52,12 @@ func _ready() -> void:
 	_label.add_theme_font_size_override("font_size", 48)
 	layer.add_child(_label)
 	add_child(layer)
+
+
+## Bouton retour du téléphone : retour à l'écran d'accueil.
+func _on_back() -> bool:
+	get_tree().change_scene_to_file("res://scenes/boot/boot.tscn")
+	return true
 
 
 func _spawn(n: int) -> void:

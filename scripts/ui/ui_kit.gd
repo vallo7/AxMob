@@ -41,6 +41,11 @@ static func panel_box() -> StyleBoxFlat:
 	return _box(PANEL, 28)
 
 
+## Fond de bouton d'une couleur donnée (états normal / inactif des cartes).
+static func button_box(color: Color) -> StyleBoxFlat:
+	return _box(color)
+
+
 static func _box(color: Color, radius: int = 18) -> StyleBoxFlat:
 	var s: StyleBoxFlat = StyleBoxFlat.new()
 	s.bg_color = color
