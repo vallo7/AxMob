@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProjectileData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/projectile_data.gd" id="1_s"]
+
+[resource]
+script = ExtResource("1_s")
+id = &"axe_heavy"
+category = 1
+speed = 9.0
+acceleration = 14.0
+max_speed = 26.0
+radius = 0.55
+lifetime = 2.2
+spin_speed = 9.0
+visual_scale = 1.8
