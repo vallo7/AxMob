@@ -1,0 +1,126 @@
+name: Unpack
+# Dépose un .zip à la racine du dépôt (ou dans incoming/) : ce workflow le
+# décompresse, commite les fichiers sur la même branche, puis supprime l'archive.
+# Lancement manuel possible : onglet Actions > Unpack > Run workflow.
+on:
+  push:
+    paths:
+      - "*.zip"
+      - "incoming/*.zip"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unpack-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  unpack:
+    # Ignore le commit de nettoyage produit par ce workflow lui-même.
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(unpack)')
+    runs-on: ubuntu-24.04
+    env:
+      # Secret optionnel : jeton personnel (droits Contents + Workflows en écriture).
+      # Avec lui, les fichiers de .github/workflows/ sont poussés et la CI se déclenche.
+      HAS_PAT: ${{ secrets.UNPACK_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.UNPACK_TOKEN || github.token }}
+
+      - name: Repérer les archives
+        id: find
+        run: |
+          shopt -s nullglob
+          zips=(*.zip incoming/*.zip)
+          if [ "${#zips[@]}" -eq 0 ]; then
+            echo "Aucune archive .zip à la racine ni dans incoming/."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s\n' "${zips[@]}" | sort -V > "$RUNNER_TEMP/zips.txt"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "Archives à traiter :"; cat "$RUNNER_TEMP/zips.txt"
+
+      - name: Décompresser
+        if: steps.find.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          # Fichiers parasites jamais extraits (macOS, Windows, sauvegardes Blender, .git).
+          EXCL=('*__MACOSX/*' '*/.DS_Store' '.DS_Store' '*/Thumbs.db' 'Thumbs.db' '*.blend1' '.git/*' '*/.git/*')
+          while IFS= read -r z; do
+            echo "::group::$z"
+            unzip -tq "$z" > /dev/null || { echo "::error::Archive corrompue : $z"; exit 1; }
+            if unzip -Z1 "$z" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+              echo "::error::Chemin dangereux dans $z (absolu ou contenant « .. »)"; exit 1
+            fi
+
+            # 1) Extraction dans un dossier temporaire (jamais directement dans le dépôt).
+            stage="$(mktemp -d "$RUNNER_TEMP/stage.XXXXXX")"
+            # (les avertissements « excluded filename not matched » sont filtrés)
+            unzip -o -q "$z" -x "${EXCL[@]}" -d "$stage" 2> >(grep -v 'not matched' >&2)
+
+            # 2) Si l'archive contient un unique dossier racine portant le nom de l'archive
+            #    (ex. axmob-phase4.zip -> axmob-phase4/), on le retire : son contenu
+            #    est fusionné à la racine du dépôt au lieu de créer un sous-dossier.
+            base="$(basename "$z" .zip)"
+            root="$stage"
+            mapfile -t tops < <(find "$stage" -mindepth 1 -maxdepth 1 -printf '%f\n')
+            if [ "${#tops[@]}" -eq 1 ] && [ -d "$stage/${tops[0]}" ] \
+               && { [ "${tops[0]}" = "$base" ] || [[ "${tops[0]}" == axmob-phase* ]]; }; then
+              root="$stage/${tops[0]}"
+              echo "Dossier racine « ${tops[0]}/ » retiré : contenu fusionné à la racine du dépôt."
+            fi
+
+            # 3) Le jeton par défaut n'a pas le droit de modifier .github/workflows/ :
+            #    on garde ces fichiers à part, hors de .github/, pour les déplacer à la main.
+            if [ "$HAS_PAT" != "true" ] && [ -d "$root/.github/workflows" ]; then
+              mkdir -p pending-workflows
+              cp -a "$root/.github/workflows/." pending-workflows/
+              rm -rf "$root/.github/workflows"
+            fi
+
+            # 4) Fusion dans le dépôt : les fichiers existants sont écrasés, les autres conservés.
+            cp -a "$root/." .
+            rm -rf "$stage"
+            rm -f -- "$z"
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/zips.txt"
+          # Scripts shell exécutables, dossiers vides conservés par git.
+          find . -name '*.sh' -not -path './.git/*' -exec chmod +x {} +
+          find . -type d -empty -not -path './.git/*' -exec touch {}/.gitkeep \;
+
+      - name: Commiter et pousser
+        if: steps.find.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Rien à commiter."; exit 0
+          fi
+          names=$(paste -sd' ' "$RUNNER_TEMP/zips.txt")
+          git commit -q -m "chore(unpack): ${names}"
+          {
+            echo "### Unpack"
+            echo "Archives : \`${names}\`"
+            echo '```'
+            git show --shortstat --format= HEAD
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git show --stat=100 --format= HEAD
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Avertir si les workflows n'ont pas pu être poussés
+        if: steps.find.outputs.found == 'true' && env.HAS_PAT != 'true'
+        run: |
+          if [ -d pending-workflows ]; then
+            msg="Les workflows de l'archive sont dans pending-workflows/ : le jeton par défaut ne peut pas écrire dans .github/workflows/. Déplace-les à la main, ou ajoute le secret UNPACK_TOKEN."
+            echo "::warning::$msg"
+            echo "> ⚠️ $msg" >> "$GITHUB_STEP_SUMMARY"
+          fi
