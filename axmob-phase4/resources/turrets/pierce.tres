@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="TurretData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/turret_data.gd" id="1_s"]
+[ext_resource type="Resource" path="res://resources/turrets/axe_pierce.tres" id="2_e"]
+
+[resource]
+script = ExtResource("1_s")
+id = &"pierce"
+display_name = "Pierce"
+damage = 14.0
+fire_rate = 1.2
+attack_range = 19.5
+rotation_speed = 5.0
+axe_count = 1
+fan_angle_deg = 0.0
+pierce = 4
+color = Color(0.3, 0.7, 0.9, 1)
+damage_growth = 1.16
+rate_growth = 1.05
+pierce_steps = PackedInt32Array(4, 4, 5, 5, 6, 6, 7, 7, 8, 9)
+cost_scale = 1.05
+projectile = ExtResource("2_e")
