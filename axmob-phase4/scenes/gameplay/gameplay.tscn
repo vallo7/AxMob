@@ -1,0 +1,134 @@
+[gd_scene load_steps=21 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/gameplay.gd" id="1_gp"]
+[ext_resource type="Script" path="res://scripts/gameplay/arena.gd" id="2_arena"]
+[ext_resource type="Script" path="res://scripts/turrets/turret_manager.gd" id="3_tm"]
+[ext_resource type="Script" path="res://scripts/enemies/enemy_manager.gd" id="4_em"]
+[ext_resource type="Script" path="res://scripts/projectiles/projectile_manager.gd" id="5_pm"]
+[ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="6_pc"]
+[ext_resource type="Script" path="res://scripts/gameplay/camera_rig.gd" id="7_cam"]
+[ext_resource type="Script" path="res://scripts/gameplay/contact_detector.gd" id="8_cd"]
+[ext_resource type="Script" path="res://scripts/gameplay/combat_director.gd" id="9_dir"]
+[ext_resource type="Script" path="res://scripts/enemies/wave_manager.gd" id="10_wm"]
+[ext_resource type="Script" path="res://scripts/economy/economy_manager.gd" id="11_eco"]
+[ext_resource type="Script" path="res://scripts/ui/floating_joystick.gd" id="12_joy"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="13_hud"]
+[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="14_pause"]
+[ext_resource type="Script" path="res://scripts/ui/game_over_screen.gd" id="15_over"]
+[ext_resource type="Script" path="res://scripts/economy/upgrade_manager.gd" id="16_upg"]
+[ext_resource type="Script" path="res://scripts/ui/enemy_bars.gd" id="17_bars"]
+[ext_resource type="Script" path="res://scripts/ui/boss_bar.gd" id="18_boss"]
+[ext_resource type="Script" path="res://scripts/ui/turret_upgrade_panel.gd" id="19_panel"]
+
+[sub_resource type="Environment" id="Env_gp"]
+background_mode = 1
+background_color = Color(0.2, 0.62, 0.8, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.84, 0.92, 1)
+ambient_light_energy = 0.6
+
+[node name="Gameplay" type="Node3D"]
+script = ExtResource("1_gp")
+
+[node name="World" type="Node3D" parent="."]
+
+[node name="Environment" type="WorldEnvironment" parent="World"]
+environment = SubResource("Env_gp")
+
+[node name="Sun" type="DirectionalLight3D" parent="World"]
+light_color = Color(1, 0.96, 0.88, 1)
+light_energy = 0.82
+shadow_enabled = false
+
+[node name="Arena" type="Node3D" parent="World"]
+script = ExtResource("2_arena")
+
+[node name="Turrets" type="Node3D" parent="World"]
+script = ExtResource("3_tm")
+
+[node name="Enemies" type="Node3D" parent="World"]
+script = ExtResource("4_em")
+
+[node name="Projectiles" type="Node3D" parent="World"]
+script = ExtResource("5_pm")
+
+[node name="Player" type="Node3D" parent="World"]
+script = ExtResource("6_pc")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("7_cam")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+
+[node name="Systems" type="Node" parent="."]
+
+[node name="ContactDetector" type="Node" parent="Systems"]
+script = ExtResource("8_cd")
+
+[node name="CombatDirector" type="Node" parent="Systems"]
+script = ExtResource("9_dir")
+
+[node name="WaveManager" type="Node" parent="Systems"]
+script = ExtResource("10_wm")
+
+[node name="EconomyManager" type="Node" parent="Systems"]
+script = ExtResource("11_eco")
+
+[node name="UpgradeManager" type="Node" parent="Systems"]
+script = ExtResource("16_upg")
+
+[node name="Ui" type="CanvasLayer" parent="."]
+
+[node name="Joystick" type="Control" parent="Ui"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("12_joy")
+
+[node name="EnemyBars" type="Control" parent="Ui"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("17_bars")
+
+[node name="BossBar" type="Control" parent="Ui"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("18_boss")
+
+[node name="Hud" type="Control" parent="Ui"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("13_hud")
+
+[node name="UpgradePanel" type="Control" parent="Ui"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("19_panel")
+
+[node name="PauseMenu" type="Control" parent="Ui"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("14_pause")
+
+[node name="GameOverScreen" type="Control" parent="Ui"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("15_over")

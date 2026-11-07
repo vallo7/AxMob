@@ -1,0 +1,49 @@
+[gd_scene load_steps=5 format=3 uid="uid://b7axmobboot01"]
+
+[ext_resource type="Script" path="res://scenes/boot/boot.gd" id="1_boot"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_1"]
+size = Vector3(1.4, 1.4, 1.4)
+
+[sub_resource type="StandardMaterial3D" id="Mat_1"]
+albedo_color = Color(0.93, 0.47, 0.12, 1)
+
+[sub_resource type="Environment" id="Env_1"]
+background_mode = 1
+background_color = Color(0.14, 0.15, 0.18, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.5, 0.5, 0.55, 1)
+
+[node name="Boot" type="Node3D"]
+script = ExtResource("1_boot")
+
+[node name="Cube" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("Mat_1")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.9, 0.43, 0, -0.43, 0.9, 0, 3.2, 5.5)
+keep_aspect = 0
+fov = 50.0
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.8, -0.35, 0.5, 0, 0.82, 0.57, -0.6, -0.45, 0.66, 0, 5, 0)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_1")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+
+[node name="Info" type="Label" parent="Hud"]
+offset_left = 40.0
+offset_top = 120.0
+offset_right = 1040.0
+offset_bottom = 320.0
+theme_override_font_sizes/font_size = 44
+
+[node name="Fps" type="Label" parent="Hud"]
+offset_left = 40.0
+offset_top = 340.0
+offset_right = 500.0
+offset_bottom = 420.0
+theme_override_font_sizes/font_size = 56

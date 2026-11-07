@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TurretData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/turret_data.gd" id="1_s"]
+[ext_resource type="Resource" path="res://resources/turrets/axe_multi.tres" id="2_e"]
+
+[resource]
+script = ExtResource("1_s")
+id = &"multi"
+display_name = "Multi"
+damage = 9.0
+fire_rate = 1.0
+attack_range = 16.5
+rotation_speed = 5.0
+axe_count = 3
+fan_angle_deg = 26.0
+pierce = 0
+color = Color(0.95, 0.7, 0.15, 1)
+damage_growth = 1.15
+rate_growth = 1.05
+axe_count_steps = PackedInt32Array(3, 3, 4, 4, 5, 5, 6, 6, 7, 7)
+fan_per_extra_deg = 4.0
+cost_scale = 1.05
+projectile = ExtResource("2_e")

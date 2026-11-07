@@ -1,0 +1,9 @@
+.godot/
+.import/
+build/
+*.keystore
+*.jks
+android/build/*
+!android/build/.gdignore
+export_credentials.cfg
+*.translation
