@@ -22,15 +22,19 @@ var state: State = State.RUN
 var menu_action: Callable = Callable(self, "_open_menu")
 
 var _dying_time: float = 0.0
+var _feel: FeelConfig
+var _feel_dir: FeelDirector
 
 @onready var _sun: DirectionalLight3D = $World/Sun
 @onready var _arena: Arena = $World/Arena
 @onready var _turrets: TurretManager = $World/Turrets
 @onready var _enemies: EnemyManager = $World/Enemies
 @onready var _projectiles: ProjectileManager = $World/Projectiles
+@onready var _fx: FxManager = $World/Fx
 @onready var _player: PlayerController = $World/Player
 @onready var _camera: CameraRig = $CameraRig
 @onready var _contact: ContactDetector = $Systems/ContactDetector
+@onready var _audio: GameAudio = $Systems/GameAudio
 @onready var _director: CombatDirector = $Systems/CombatDirector
 @onready var _waves: WaveManager = $Systems/WaveManager
 @onready var _economy: EconomyManager = $Systems/EconomyManager
@@ -51,18 +55,25 @@ func _ready() -> void:
 	config.upgrade_pause = (
 		UserSettings.upgrade_pause(config.upgrade_pause) as GameConfig.UpgradePause
 	)
+	_feel = DataRegistry.feel()
 	ctx = RunContext.new(config, DataRegistry.balance())
 	_arena.setup(config)
 	_player.setup(ctx)
 	_enemies.setup(ctx)
 	_turrets.setup(ctx, DataRegistry.turrets())
-	_projectiles.setup(ctx)
+	_projectiles.setup(ctx, _feel)
+	_fx.setup(ctx, _feel, _turret_positions())
+	_feel_dir = FeelDirector.new(_feel)
+	_feel_dir.bind_events()
 	_contact.setup(ctx)
 	_director.setup(ctx)
 	_waves.setup(ctx, DataRegistry.wave_table(), run_seed)
 	_economy.setup(ctx)
 	_upgrades.setup(ctx, _economy)
-	_camera.setup(config)
+	_audio.setup(ctx)
+	_enemies.warm_up_rendering()
+	_camera.setup(config, _feel)
+	_camera.bind_events()
 	_joystick.setup(config)
 	_enemy_bars.setup(ctx, _camera.camera())
 	_boss_bar.setup(ctx, _camera.camera())
@@ -84,18 +95,23 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Facteur de temps du « game feel » : arrêt sur image sur les gros impacts, ralenti du boss.
+	var feel_scale: float = _feel_dir.advance(delta)
+	ctx.advancing = false
 	match state:
 		State.RUN, State.DYING:
-			step(delta)
+			step(delta * feel_scale)
 		State.UPGRADING:
 			var k: float = ctx.config.upgrade_time_scale()
 			if k > 0.0:
-				step(delta * k)
+				step(delta * k * feel_scale)
 
 
 ## Un pas de simulation. Public pour les tests headless (pas de dépendance au moteur de boucle).
 func step(dt: float) -> void:
 	ctx.time += dt
+	ctx.last_dt = dt
+	ctx.advancing = true
 	_player.step(dt, _read_input())
 	_enemies.step(dt)
 	_contact.step()
@@ -103,10 +119,18 @@ func step(dt: float) -> void:
 	_projectiles.step(dt)
 	_waves.step(dt)
 	_camera.step(ctx, dt)
+	_fx.step(dt)
 	if state == State.DYING:
 		_dying_time += dt
 		if _dying_time >= GAME_OVER_DELAY:
 			_finish()
+
+
+func _turret_positions() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for turret: Turret in _turrets.turrets:
+		out.append(turret.pos2)
+	return out
 
 
 func _read_input() -> Vector2:

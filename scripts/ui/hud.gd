@@ -25,6 +25,10 @@ var _upgrade_button: Button
 var _badge: Label
 var _debug_timer: float = 0.0
 var _banner_tween: Tween
+var _vignette: ColorRect
+var _vignette_mat: ShaderMaterial
+var _flash_k: float = 0.0
+var _coin_tween: Tween
 
 
 func setup(
@@ -42,6 +46,7 @@ func setup(
 	_build()
 	EventBus.player_damaged.connect(_on_player_damaged)
 	EventBus.coins_changed.connect(_on_coins_changed)
+	EventBus.coin_collected.connect(_on_coin_collected)
 	EventBus.wave_started.connect(_on_wave_started)
 	EventBus.boss_warning.connect(_on_boss_warning)
 	EventBus.boss_phase_changed.connect(_on_boss_phase)
@@ -50,6 +55,7 @@ func setup(
 
 
 func _process(delta: float) -> void:
+	_update_vignette(delta)
 	_time_label.text = _format_time(_ctx.time)
 	var window_ratio: float = _ctx.combat.remaining(_ctx.time) / _ctx.config.window_duration
 	_window_fill.size.x = BAR_W * clampf(window_ratio, 0.0, 1.0)
@@ -60,18 +66,28 @@ func _process(delta: float) -> void:
 	if _debug_timer <= 0.0:
 		_debug_timer = DEBUG_REFRESH
 		_debug.text = (
-			"%d FPS\nennemis %d\nhaches %d\ndraw calls %d\nrythme %.2f"
+			"%d FPS (%.1f ms)\nennemis %d\nhaches %d\ndraw calls %d\nrythme %.2f\nqualité %s 3D x%.2f"
 			% [
 				Engine.get_frames_per_second(),
+				Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 				_ctx.enemies.count_living(),
 				_projectiles.active_count(),
 				int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 				_ctx.pacing,
+				QualityManager.mode_label(),
+				QualityManager.applied_scale,
 			]
 		)
 
 
 func _build() -> void:
+	_vignette = ColorRect.new()
+	_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vignette_mat = ShaderMaterial.new()
+	_vignette_mat.shader = preload("res://assets/shaders/ax_vignette.gdshader")
+	_vignette.material = _vignette_mat
+	add_child(_vignette)
 	var top: float = UiKit.top_inset() + 24.0
 	var width: float = get_viewport_rect().size.x
 	var height: float = get_viewport_rect().size.y
@@ -138,16 +154,47 @@ func _build() -> void:
 	add_child(_debug)
 
 
-func _on_player_damaged(_amount: float, hp_left: float) -> void:
+func _on_player_damaged(amount: float, hp_left: float) -> void:
 	_hp_fill.size.x = BAR_W * clampf(hp_left / _player.health.max_hp, 0.0, 1.0)
+	if amount > 0.0:
+		_flash_k = 1.0
+		_pop(_hp_fill.get_parent() as Control, 1.06)
+
+
+## Vignette : flash rouge à chaque coup subi + pulsation douce quand les PV sont bas.
+func _update_vignette(delta: float) -> void:
+	_flash_k = maxf(_flash_k - delta * 2.4, 0.0)
+	var frac: float = _ctx.player_hp_fraction
+	var low: float = 0.0
+	if _ctx.player_alive and frac < 0.3:
+		low = 0.22 * (1.0 - frac / 0.3) * (0.55 + 0.45 * sin(Time.get_ticks_msec() * 0.0055))
+	_vignette_mat.set_shader_parameter(&"intensity", maxf(_flash_k * 0.85, low))
+
+
+## Petit « pop » élastique d'un élément d'interface.
+func _pop(node: Control, amount: float) -> void:
+	if node == null:
+		return
+	node.pivot_offset = node.size * 0.5
+	node.scale = Vector2.ONE * amount
+	var tw: Tween = create_tween()
+	tw.tween_property(node, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(
+		Tween.EASE_OUT
+	)
 
 
 func _on_coins_changed(total: int) -> void:
 	_coins_label.text = str(total)
 
 
+## Une pièce cosmétique arrive au joueur : le compteur rebondit (plus fort sur les séries).
+func _on_coin_collected(streak: int) -> void:
+	_pop(_coins_label, 1.0 + 0.10 * minf(float(streak), 4.0) * 0.5 + 0.08)
+
+
 func _on_wave_started(wave: int) -> void:
 	_wave_label.text = "VAGUE %d" % wave
+	_pop(_wave_label, 1.35)
 	_show_banner("VAGUE %d" % wave, UiKit.ACCENT, 120, 0.5)
 
 
@@ -170,7 +217,16 @@ func _show_banner(text: String, color: Color, font_size: int, hold: float) -> vo
 	if _banner_tween != null and _banner_tween.is_valid():
 		_banner_tween.kill()
 	_banner.modulate.a = 1.0
+	# Entrée élastique (rebond) puis maintien et fondu.
+	_banner.pivot_offset = _banner.size * 0.5
+	_banner.scale = Vector2.ONE * 0.45
 	_banner_tween = create_tween()
+	(
+		_banner_tween
+		. tween_property(_banner, "scale", Vector2.ONE, 0.38)
+		. set_trans(Tween.TRANS_BACK)
+		. set_ease(Tween.EASE_OUT)
+	)
 	_banner_tween.tween_interval(hold)
 	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.6)
 

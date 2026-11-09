@@ -18,7 +18,6 @@ const BOSS_ROAR_TIME: float = 0.8
 ## Marge de portée : une charge qui arrive tout juste au contact du joueur reste utile.
 const CHARGE_REACH_SLACK: float = 1.0
 ## Au-delà de cette distance au joueur, l'animation n'avance qu'un tick sur deux (plan §2.3).
-const FAR_ANIM_DIST_SQ: float = 14.0 * 14.0
 ## Part du temps de mort pendant laquelle l'animation joue avant le rétrécissement final.
 const DEATH_ANIM_SHARE: float = 0.75
 ## Modèles préchauffés au chargement (évite les à-coups aux premières apparitions).
@@ -29,9 +28,14 @@ var _ctx: RunContext
 var _free_rigs: Dictionary = {}
 var _tick: int = 0
 var _pool_root: Node3D
+var _warm_frames: int = 0
 var _telegraph_ring: MeshInstance3D
 var _telegraph_fill: MeshInstance3D
 var _telegraph_line: MeshInstance3D
+var _juice_out: EnemyJuice.Out = EnemyJuice.Out.new()
+## Animation lointaine (profil de qualité) : distance au carré et 1 tick sur N.
+var _far_dist_sq: float = 14.0 * 14.0
+var _far_divisor: int = 2
 
 
 func setup(ctx: RunContext) -> void:
@@ -48,7 +52,16 @@ func setup(ctx: RunContext) -> void:
 	_prewarm()
 	_build_telegraphs()
 	EventBus.axe_hit.connect(_on_axe_hit)
+	EventBus.axe_splash.connect(_on_axe_splash)
 	EventBus.enemy_spawn_requested.connect(_on_spawn_requested)
+	EventBus.quality_changed.connect(func(_t: int) -> void: apply_profile(QualityManager.profile))
+	apply_profile(QualityManager.profile)
+
+
+## Profil de qualité : les ennemis lointains animent un tick sur N (au N-uple du pas).
+func apply_profile(profile: QualityProfile) -> void:
+	_far_dist_sq = profile.far_anim_dist * profile.far_anim_dist
+	_far_divisor = maxi(profile.far_anim_divisor, 1)
 
 
 func _on_spawn_requested(data: EnemyData, position: Vector2, level: int) -> void:
@@ -81,9 +94,16 @@ func spawn(data: EnemyData, position: Vector2, level: int = 1) -> int:
 	e.facing = to_player.normalized() if to_player.length() > 0.001 else Vector2(0.0, 1.0)
 	e.roaring = false
 	e.anim_state = -1
+	e.hit_kick = 0.0
+	e.hit_dir = Vector2.ZERO
+	e.juice_phase = float(id) * 1.7
+	e.idle_phase = float(id) * 0.9
 	_attach_rig(e)
 	_ctx.grid.insert(id, position)
 	_sync_visual(e)
+	# Emplacement recyclé : le modèle apparaît directement à sa place (pas de glissement).
+	e.visual.reset_physics_interpolation()
+	EventBus.enemy_spawned.emit(id, position)
 	if data is BossData:
 		e.boss = BossState.new(data as BossData)
 		_ctx.boss_id = id
@@ -127,6 +147,7 @@ func step(dt: float) -> void:
 					e.visual.visible = false
 					_release_rig(e)
 		_advance_animation(e, dt)
+		EnemyJuice.advance(e, EnemyJuice.profile_of(e), e.data.speed * e.speed_mult, dt)
 		_sync_visual(e)
 	_rebuild_grid()
 	_update_telegraphs()
@@ -135,6 +156,8 @@ func step(dt: float) -> void:
 func _enter(e: Enemy, state: Enemy.State) -> void:
 	e.state = state
 	e.state_time = 0.0
+	if state == Enemy.State.WINDUP or state == Enemy.State.CHARGE_WINDUP:
+		EventBus.enemy_windup.emit(e.id, state == Enemy.State.CHARGE_WINDUP)
 	if state != Enemy.State.RECOVER:
 		e.roaring = false
 
@@ -336,12 +359,48 @@ func _on_axe_hit(enemy_id: int, raw_damage: float, category: int, direction: Vec
 	var e: Enemy = _ctx.enemies.slots[enemy_id]
 	if not e.is_hittable():
 		return
+	_hurt(e, raw_damage, category, direction, 1.0)
+
+
+## Impact de zone : tous les ennemis touchables dans le rayon (sauf celui déjà frappé en direct)
+## prennent des dégâts décroissants avec la distance et sont repoussés du centre.
+func _on_axe_splash(
+	center: Vector2,
+	radius: float,
+	raw_damage: float,
+	category: int,
+	source_id: int,
+	falloff: float,
+	knockback: float
+) -> void:
+	var hits: int = 0
+	for id: int in _ctx.grid.query_circle(center, radius + MAX_ENEMY_RADIUS):
+		if id == source_id:
+			continue
+		var e: Enemy = _ctx.enemies.slots[id]
+		if not e.is_hittable():
+			continue
+		var offset: Vector2 = e.pos - center
+		var gap: float = offset.length() - e.data.radius
+		if gap > radius:
+			continue
+		var edge: float = clampf(gap / maxf(radius, 0.01), 0.0, 1.0)
+		var dmg: float = raw_damage * lerpf(1.0, falloff, edge)
+		var away: Vector2 = offset.normalized() if offset.length() > 0.001 else Vector2.RIGHT
+		_hurt(e, dmg, category, away, knockback / maxf(_ctx.config.knockback_speed, 0.01))
+		hits += 1
+	EventBus.axe_splash_resolved.emit(center, radius, hits)
+
+
+func _hurt(e: Enemy, raw_damage: float, category: int, direction: Vector2, knock: float) -> void:
 	var dmg: float = DamageCalculator.compute(raw_damage, e.data.resistance(category))
 	var applied: float = e.health.apply_damage(dmg)
-	EventBus.enemy_hit.emit(enemy_id, applied)
+	EventBus.enemy_hit.emit(e.id, applied)
 	e.flash_left = FLASH_TIME
 	e.bar_until = _ctx.time + BAR_SHOW_TIME
-	e.vel += direction * _ctx.config.knockback_speed * e.data.stagger_scale
+	e.hit_kick = 1.0
+	e.hit_dir = direction
+	e.vel += direction * _ctx.config.knockback_speed * e.data.stagger_scale * knock
 	if e.health.is_dead():
 		_kill(e)
 		return
@@ -374,6 +433,25 @@ func _rebuild_grid() -> void:
 # --- Rendu : modèles Blender animés (phase 4) -------------------------------------------------
 
 
+## Réchauffe le rendu : montre le pool de modèles (minuscule, au centre) 2 images pour que le
+## moteur envoie maillages et variantes de shaders au GPU AVANT la première apparition d'ennemi
+## (sinon : micro-saccade au premier ennemi de chaque type, très visible sur mobile).
+func warm_up_rendering() -> void:
+	_pool_root.scale = Vector3.ONE * 0.001
+	_pool_root.visible = true
+	_warm_frames = 2
+	get_tree().process_frame.connect(_warm_tick)
+
+
+func _warm_tick() -> void:
+	_warm_frames -= 1
+	if _warm_frames > 0:
+		return
+	_pool_root.visible = false
+	_pool_root.scale = Vector3.ONE
+	get_tree().process_frame.disconnect(_warm_tick)
+
+
 func _prewarm() -> void:
 	for id: StringName in PREWARM:
 		var list: Array = []
@@ -402,6 +480,7 @@ func _attach_rig(e: Enemy) -> void:
 	else:
 		e.visual.add_child(rig.root)
 	rig.current = &""
+	rig.root.transform = Transform3D.IDENTITY
 	rig.set_flash(0.0)
 	rig.set_alert(Color(1.0, 0.35, 0.1, 0.0))
 	var tier: int = EnemyLevels.tint_tier(e.level)
@@ -426,11 +505,11 @@ func _advance_animation(e: Enemy, dt: float) -> void:
 	if e.rig == null:
 		return
 	_choose_animation(e)
-	# Les ennemis lointains n'animent qu'un tick sur deux, au double du pas.
-	if e.pos.distance_squared_to(_ctx.player_pos) <= FAR_ANIM_DIST_SQ:
+	# Les ennemis lointains n'animent qu'un tick sur N, à N fois le pas (profil de qualité).
+	if e.pos.distance_squared_to(_ctx.player_pos) <= _far_dist_sq:
 		e.rig.advance(dt)
-	elif (_tick + e.id) % 2 == 0:
-		e.rig.advance(dt * 2.0)
+	elif (_tick + e.id) % _far_divisor == 0:
+		e.rig.advance(dt * float(_far_divisor))
 
 
 ## Choisit l'animation d'après l'état de simulation. Les durées de la simulation (armement,
@@ -488,18 +567,13 @@ func _sync_visual(e: Enemy) -> void:
 	var scale_f: float = 1.0
 	var alert: float = 0.0
 	match e.state:
-		Enemy.State.SPAWNING:
-			scale_f = lerpf(0.3, 1.0, clampf(e.state_time / _ctx.config.spawn_invuln, 0.0, 1.0))
 		Enemy.State.WINDUP:
 			var wp: float = clampf(e.state_time / e.data.windup_time, 0.0, 1.0)
-			scale_f = 1.0 + 0.06 * wp
 			alert = 0.12 + 0.5 * wp * (0.8 + 0.2 * sin(e.state_time * 30.0))
 		Enemy.State.CHARGE_WINDUP:
 			var cp: float = clampf(e.state_time / maxf(e.boss.data.charge_windup, 0.01), 0.0, 1.0)
-			scale_f = 1.0 + 0.05 * cp
 			alert = 0.15 + 0.5 * cp * (0.8 + 0.2 * sin(e.state_time * 30.0))
 		Enemy.State.CHARGING:
-			scale_f = 1.04
 			alert = 0.35
 		Enemy.State.DYING:
 			var k: float = clampf(e.state_time / _death_time(e), 0.0, 1.0)
@@ -509,6 +583,18 @@ func _sync_visual(e: Enemy) -> void:
 	e.visual.rotation.y = Planar.yaw_from_dir(e.facing)
 	e.visual.scale = Vector3.ONE * maxf(scale_f, 0.01) * e.data.visual_scale
 	e.visual.position = Vector3(e.pos.x, 0.0, e.pos.y)
+	_apply_juice(e)
+
+
+## Animation procédurale (EnemyJuice) appliquée au modèle, par-dessus le clip Blender.
+func _apply_juice(e: Enemy) -> void:
+	var j: JuiceProfile = EnemyJuice.profile_of(e)
+	var nominal: float = e.data.speed * e.speed_mult
+	EnemyJuice.compute(e, j, _ctx.config.spawn_invuln, _death_time(e), nominal, _juice_out)
+	var root: Node3D = e.rig.root
+	root.position = _juice_out.offset
+	root.rotation = _juice_out.rot
+	root.scale = _juice_out.scale * _juice_out.uniform
 
 
 func _build_telegraphs() -> void:

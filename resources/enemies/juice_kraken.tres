@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="JuiceProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/juice_profile.gd" id="1_s"]
+
+[resource]
+script = ExtResource("1_s")
+hop_height = 0.06
+hop_hz = 1.6
+squash = 0.06
+sway_deg = 4.0
+lean_deg = 1.0
+breath = 0.04
+breath_hz = 0.6
+spawn_overshoot = 0.2
+spawn_hop = 0.2
+spawn_spin_turns = 0.0
+windup_crouch = 0.15
+lunge_distance = 0.3
+lunge_stretch = 0.1
+hit_squash = 0.04
+hit_tilt_deg = 3.0
+death_style = 3
+death_spin_turns = 0.0
+death_hop = 0.0

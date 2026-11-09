@@ -1,0 +1,25 @@
+name: Audio export
+on:
+  workflow_dispatch:
+  push:
+    paths: ["audio_src/**"]
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Dépendances (NumPy, SciPy, ffmpeg avec Vorbis)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          pip install numpy scipy
+      - name: Rendre tout l'audio (synthèse déterministe)
+        run: python audio_src/build_audio.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audio
+          path: |
+            assets/audio/**
+            !assets/audio/**/*.import

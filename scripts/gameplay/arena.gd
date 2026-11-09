@@ -61,6 +61,8 @@ func setup(cfg: GameConfig) -> void:
 	ocean_material = ShaderMaterial.new()
 	ocean_material.shader = OCEAN_SHADER
 	ocean_material.set_shader_parameter(&"model_scale", k)
+	_apply_quality()
+	EventBus.quality_changed.connect(func(_t: int) -> void: _apply_quality())
 	var sea: ModelRig = ModelRig.create("ocean")
 	if sea != null:
 		for n: Node in sea.root.find_children("*", "MeshInstance3D", true, false):
@@ -79,3 +81,8 @@ func setup(cfg: GameConfig) -> void:
 		rig.root.rotation.y = deg_to_rad(entry["yaw"] as float)
 		rig.root.scale = Vector3.ONE * (entry["scale"] as float) * k
 		add_child(rig.root)
+
+
+## Détail de la mer selon le profil de qualité (la mer couvre une grande part de l'écran).
+func _apply_quality() -> void:
+	ocean_material.set_shader_parameter(&"detail", QualityManager.profile.ocean_detail)

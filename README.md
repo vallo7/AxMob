@@ -1,6 +1,6 @@
 # AxMob — ValloGame
 
-Arena survival 3D (Godot 4.7.2, GDScript typé, Android portrait). Rapports : `docs/PHASE0.md`, `docs/PHASE2.md` (prototype jouable), `docs/PHASE3.md` (combat et systèmes), `docs/PHASE4.md` (assets Blender, décor plage, vibrations).
+Arena survival 3D (Godot 4.7.2, GDScript typé, Android portrait). Rapports : `docs/PHASE0.md`, `docs/PHASE2.md` (prototype jouable), `docs/PHASE3.md` (combat et systèmes), `docs/PHASE4.md` (assets Blender, décor plage, vibrations), `docs/PHASE5.md` (game feel : effets, son, caméra, performance).
 
 ## Démarrer en local
 ```bash
@@ -28,6 +28,7 @@ xvfb-run -a godot --rendering-driver opengl3 --resolution 640x640 --path . \
 - `build-android.yml` : APK debug (artefact) à chaque push sur `main` ; AAB signé sur tag `v*`
   (Secrets : `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_USER`, `ANDROID_KEYSTORE_PASSWORD`).
 - `blender-export.yml` : exécute `blender/source/*.py` et publie GLB, .blend et textures.
+- `audio-export.yml` : rend tout l'audio (`audio_src/build_audio.py`) et publie `assets/audio/`.
 
 ## Conventions
 - Animations Blender bouclées : nommer l'action `xxx-loop` ; Godot l'importe en `xxx` avec boucle linéaire.
@@ -64,3 +65,19 @@ intégration : `scripts/core/model_rig.gd` (animations, teinte par instance), `s
 (décor), `scripts/enemies/enemy_manager.gd` (un pool de modèles par type).
 Vibrations : test dans le menu pause (« TESTER LA VIBRATION ») ; la CI vérifie la permission VIBRATE
 dans l'APK produit.
+
+## Phase 5 : game feel, son, performance
+Tout se règle dans `resources/balancing/feel_config.tres` (caméra, secousses, hit-stop, effets),
+`resources/enemies/juice_*.tres` (animation procédurale de chaque ennemi) et
+`resources/turrets/axe_*.tres` (dégâts, zone, vol et traînée des haches). Le menu pause permet de
+changer la qualité (AUTO/BAS/MOYEN/ÉLEVÉ) et le son en cours de partie.
+```bash
+python3 audio_src/build_audio.py            # rend les 45 effets (82 fichiers), 3 morceaux, l'ambiance
+python3 audio_src/build_audio.py --only sfx # un seul groupe (sfx | music | amb)
+xvfb-run -a godot --rendering-driver opengl3 --resolution 540x960 --path . \
+  res://scenes/tools/fx_showcase.tscn -- /tmp/fx          # séquence « hache lourde » (captures)
+xvfb-run -a godot --rendering-driver opengl3 --resolution 540x960 --path . \
+  res://scenes/tools/capture.tscn -- /tmp/shots 55        # captures avec une caméra à 55°
+```
+Audio : le catalogue de mixage est `scripts/audio/sfx_catalog.gd` (un test vérifie que chaque son
+existe et qu'aucun fichier n'est orphelin). `audio_src/` est ignoré par Godot (`.gdignore`).

@@ -6,6 +6,10 @@ extends RefCounted
 var config: GameConfig
 var balance: BalanceConfig
 var time: float = 0.0
+## Dernier pas de simulation (s) et indicateur « la simulation a avancé à ce tick » : servent à
+## interpoler les effets à l'affichage (phase 5) sans jamais faire reculer le temps des shaders.
+var last_dt: float = 1.0 / 60.0
+var advancing: bool = false
 var player_pos: Vector2 = Vector2.ZERO
 var player_vel: Vector2 = Vector2.ZERO
 var player_alive: bool = true

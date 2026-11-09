@@ -1,7 +1,7 @@
 extends Node
 ## Captures d'écran du prototype avec le bot (nécessite un rendu : xvfb + OpenGL logiciel).
 ## xvfb-run -a godot --rendering-driver opengl3 --resolution 540x960 \
-##   --path . res://scenes/tools/capture.tscn -- /tmp/shots
+##   --path . res://scenes/tools/capture.tscn -- /tmp/shots [élévation caméra en degrés]
 ## Sert à contrôler visuellement la scène ; ne remplace pas un test sur téléphone.
 ## Séquence : parties normales (shot_00..03, combat), puis panneau d'amélioration (panel),
 ## avertissement de boss (boss_warning), boss et télégraphe d'onde de choc (boss, boss_slam),
@@ -24,6 +24,9 @@ func _ready() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_out_dir = args[0]
+	if args.size() > 1:
+		# Comparaison d'angles : le 2e argument remplace l'élévation de la caméra (degrés).
+		DataRegistry.feel().pitch_degrees = float(args[1])
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_game = (load("res://scenes/gameplay/gameplay.tscn") as PackedScene).instantiate() as Gameplay
 	_game.set_physics_process(false)
@@ -106,8 +109,10 @@ func _run_extra() -> void:
 				await get_tree().process_frame
 				_save("%s/boss_charge.png" % _out_dir)
 				print("[capture] terminé")
+				AudioManager.shutdown()
 				get_tree().quit()
 			elif _stage_frames > 120:
+				AudioManager.shutdown()
 				get_tree().quit()
 
 

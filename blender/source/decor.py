@@ -90,6 +90,7 @@ def sandcastle():
 
 
 def shell():
+    ax.AUTO_ROUND_BELOW = 0  # coquillage : beaucoup de petites pièces, déjà rond ; on garde le budget
     ax.reset_scene()
     m = ax.Mesher()
     m.add(ax.ellipsoid((0.4, 0.34, 0.12), 12, 6, M((0, 0, 0.1))), "pink_light", crease=0)
@@ -150,7 +151,9 @@ def surfboard():
 
 
 def main():
+    # La bibliothèque est partagée : on rétablit l'arrondi automatique entre chaque asset.
     for fn in (palm, umbrella, towel, beach_ball, sandcastle, shell, starfish, rock, bucket, surfboard):
+        ax.AUTO_ROUND_BELOW = 8
         fn()
 
 

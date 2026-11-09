@@ -43,6 +43,21 @@ def ground_z(r: float, e: float) -> float:
 
 
 # ------------------------------------------------------------------ texture de sable (numpy)
+def box_blur(img: np.ndarray, radius: int, passes: int = 3) -> np.ndarray:
+    """Flou (≈ gaussien après 3 passes) en numpy pur : somme cumulée séparable, bords répétés."""
+    out = img.astype(np.float64)
+    k = 2 * radius + 1
+    for _ in range(passes):
+        for axis in (0, 1):
+            pad = [(0, 0)] * out.ndim
+            pad[axis] = (radius + 1, radius)
+            c = np.cumsum(np.pad(out, pad, mode="edge"), axis=axis)
+            hi = np.take(c, np.arange(k, c.shape[axis]), axis=axis)
+            lo = np.take(c, np.arange(0, c.shape[axis] - k), axis=axis)
+            out = (hi - lo) / k
+    return out
+
+
 def paint_sand(path: str) -> None:
     n = TEX_PX
     xs = (np.arange(n) + 0.5) / n * 2 * TEX_HALF - TEX_HALF
@@ -79,14 +94,13 @@ def paint_sand(path: str) -> None:
     # ondulations (rides de sable) : très discrètes dans l'arène, plus marquées dehors
     noise_lo = np.kron(rng.random((n // 64 + 2, n // 64 + 2)), np.ones((64, 64)))[:n, :n]
     ripple = np.sin((R * 2.4 + noise_lo * 2.0 + 2.0 * np.sin(TH * 9)) * 1.0)
-    amp = 0.02 + 0.03 * sm(ARENA_R, ARENA_R + 3, R)
+    amp = 0.008 + 0.02 * sm(ARENA_R, ARENA_R + 3, R)  # phase 5 : sable plus lisse
     img *= (1.0 + ripple * amp)[..., None]
     # variations douces + grain + quelques cailloux
     blobs = np.kron(rng.random((n // 32 + 2, n // 32 + 2)), np.ones((32, 32)))[:n, :n]
-    img *= (1.0 + (blobs - 0.5) * 0.05)[..., None]
-    img *= (1.0 + (rng.random((n, n)) - 0.5) * 0.045)[..., None]
-    peb = rng.random((n, n)) > 0.9985
-    img[peb] *= 0.82
+    img *= (1.0 + (blobs - 0.5) * 0.03)[..., None]
+    # phase 5 : plus de grain ni de cailloux (texture lisse) ; léger flou final contre les marches des blobs
+    img = box_blur(img, 2, 3)
     # hors de l'île : couleur d'eau (jamais visible : la mer est dessinée par-dessus)
     img = lerp(img, np.broadcast_to(np.array([0.3, 0.75, 0.85]), img.shape), sm(0.5, 1.5, D))
     ax.write_png(path, (np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8))

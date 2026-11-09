@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="BossData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="BossData" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/boss_data.gd" id="1_s"]
 [ext_resource type="Resource" path="res://resources/enemies/basic.tres" id="2_b"]
+
+[ext_resource type="Resource" path="res://resources/enemies/juice_kraken.tres" id="9_juice"]
 
 [resource]
 script = ExtResource("1_s")
@@ -28,3 +30,5 @@ death_time = 1.2
 resistances = PackedFloat32Array(1, 0.8, 1, 0.9)
 visual_scale = 1.15
 color = Color(0.24, 0.48, 1, 1)
+juice = ExtResource("9_juice")
+sound_kind = &"kraken"

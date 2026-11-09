@@ -34,6 +34,8 @@ static func button(text: String, min_size: Vector2, font_size: int = 44) -> Butt
 	b.add_theme_stylebox_override("hover", _box(Color(0.26, 0.28, 0.35)))
 	b.add_theme_stylebox_override("pressed", _box(ACCENT))
 	b.add_theme_stylebox_override("focus", _box(Color(0.2, 0.22, 0.28)))
+	# Retour sonore de tous les boutons (le cooldown du catalogue évite les doublons).
+	b.pressed.connect(func() -> void: AudioManager.play_ui(&"ui_tap"))
 	return b
 
 

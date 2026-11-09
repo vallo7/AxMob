@@ -19,6 +19,8 @@
 [ext_resource type="Script" path="res://scripts/ui/enemy_bars.gd" id="17_bars"]
 [ext_resource type="Script" path="res://scripts/ui/boss_bar.gd" id="18_boss"]
 [ext_resource type="Script" path="res://scripts/ui/turret_upgrade_panel.gd" id="19_panel"]
+[ext_resource type="Script" path="res://scripts/fx/fx_manager.gd" id="20_fx"]
+[ext_resource type="Script" path="res://scripts/audio/game_audio.gd" id="21_audio"]
 
 [sub_resource type="Environment" id="Env_gp"]
 background_mode = 1
@@ -52,6 +54,9 @@ script = ExtResource("4_em")
 [node name="Projectiles" type="Node3D" parent="World"]
 script = ExtResource("5_pm")
 
+[node name="Fx" type="Node3D" parent="World"]
+script = ExtResource("20_fx")
+
 [node name="Player" type="Node3D" parent="World"]
 script = ExtResource("6_pc")
 
@@ -64,6 +69,9 @@ script = ExtResource("7_cam")
 
 [node name="ContactDetector" type="Node" parent="Systems"]
 script = ExtResource("8_cd")
+
+[node name="GameAudio" type="Node" parent="Systems"]
+script = ExtResource("21_audio")
 
 [node name="CombatDirector" type="Node" parent="Systems"]
 script = ExtResource("9_dir")

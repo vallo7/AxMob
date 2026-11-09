@@ -43,6 +43,11 @@ var rig: ModelRig
 var anim_state: int = -1
 ## Vrai pendant le rugissement d'un boss qui change de phase.
 var roaring: bool = false
+## Animation procédurale (phase 5) : impulsion d'impact (1 -> 0), sens du coup, phase de course.
+var hit_kick: float = 0.0
+var hit_dir: Vector2 = Vector2.ZERO
+var juice_phase: float = 0.0
+var idle_phase: float = 0.0
 
 
 func _init(p_id: int) -> void:

@@ -7,7 +7,7 @@
 script = ExtResource("1_s")
 id = &"pierce"
 display_name = "Pierce"
-damage = 14.0
+damage = 20.0
 fire_rate = 1.2
 attack_range = 19.5
 rotation_speed = 5.0

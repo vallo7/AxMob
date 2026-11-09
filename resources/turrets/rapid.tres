@@ -7,7 +7,7 @@
 script = ExtResource("1_s")
 id = &"rapid"
 display_name = "Rapid"
-damage = 8.0
+damage = 11.0
 fire_rate = 3.0
 attack_range = 18.0
 rotation_speed = 6.5

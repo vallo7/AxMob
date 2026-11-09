@@ -11,6 +11,12 @@ const HIT_ANIM_TIME: float = 0.3
 const VISUAL_SCALE: float = 1.2
 ## Le héros court à vitesse maximale : le clip « run » est calé dessus.
 const RUN_SPEED_SCALE: float = 1.15
+## Pas par seconde à pleine vitesse (rebond de course + son de pas) et amplitude du rebond.
+const STEP_HZ: float = 2.7
+const BOUNCE_HEIGHT: float = 0.07
+const BOUNCE_SQUASH: float = 0.07
+const HIT_SQUASH: float = 0.28
+const IDLE_BREATH: float = 0.018
 
 var health: HealthComponent
 
@@ -22,6 +28,8 @@ var _yaw: float = 0.0
 var _hit_left: float = 0.0
 var _death_time: float = 0.0
 var _was_alive: bool = true
+var _run_phase: float = 0.0
+var _idle_phase: float = 0.0
 var _model: Node3D
 var _rig: ModelRig
 var _ring: MeshInstance3D
@@ -96,8 +104,7 @@ func _on_attack_landed(damage: float, source: Vector2) -> void:
 
 func _apply_visuals(dt: float) -> void:
 	position = Vector3(_pos.x, 0.0, _pos.y)
-	_model.rotation = Vector3(0.0, _yaw, 0.0)
-	_model.scale = Vector3.ONE * VISUAL_SCALE
+	_apply_juice(dt)
 	if _ctx.player_alive:
 		_hit_left = maxf(_hit_left - dt, 0.0)
 		if _hit_left <= 0.0:
@@ -120,6 +127,27 @@ func _apply_visuals(dt: float) -> void:
 	_ring.visible = _ctx.player_alive
 	_ring_mat.albedo_color = Color(1.0, 0.55, 0.15, 0.55) if active else Color(1.0, 1.0, 1.0, 0.18)
 	_ring_mat.emission_enabled = active
+
+
+## Animation procédurale du héros par-dessus les clips : rebond et balancement synchronisés sur les
+## pas, penchement vers l'avant, respiration à l'arrêt, écrasement à l'impact reçu.
+func _apply_juice(dt: float) -> void:
+	var speed_ratio: float = clampf(_vel.length() / _cfg.player_speed, 0.0, 1.0)
+	var prev: float = _run_phase
+	_run_phase = fposmod(_run_phase + dt * TAU * STEP_HZ * 0.5 * speed_ratio, TAU * 2.0)
+	if _ctx.player_alive and speed_ratio > 0.15 and floori(prev / PI) != floori(_run_phase / PI):
+		EventBus.player_step.emit(speed_ratio)
+	_idle_phase = fposmod(_idle_phase + dt * 2.2, TAU * 4.0)
+	var hop: float = absf(sin(_run_phase))
+	var hit: float = clampf(_hit_left / HIT_ANIM_TIME, 0.0, 1.0)
+	var sy: float = 1.0 + BOUNCE_SQUASH * (hop - 0.4) * speed_ratio
+	sy += IDLE_BREATH * sin(_idle_phase) * (1.0 - speed_ratio) - HIT_SQUASH * hit * hit
+	var wide: float = 1.0 / sqrt(maxf(sy, 0.3))
+	_model.position = Vector3(0.0, hop * BOUNCE_HEIGHT * speed_ratio, 0.0)
+	_model.rotation = Vector3(
+		-deg_to_rad(5.0) * speed_ratio, _yaw, sin(_run_phase) * deg_to_rad(3.0) * speed_ratio
+	)
+	_model.scale = Vector3(wide, sy, wide) * VISUAL_SCALE
 
 
 func _build_visuals() -> void:

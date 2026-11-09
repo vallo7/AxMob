@@ -35,6 +35,10 @@ extends Resource
 ## Agrandissement du modèle à l'écran (lisibilité en vue de dessus) ;
 ## les rayons de collision ne changent pas.
 @export var visual_scale: float = 1.0
+## Animation procédurale (phase 5) ; null = valeurs par défaut de JuiceProfile.
+@export var juice: JuiceProfile
+## Famille sonore de l'ennemi (impacts, mort) : shell, squish, hollow, bubble, kraken.
+@export var sound_kind: StringName = &"shell"
 
 
 func resistance(category: int) -> float:

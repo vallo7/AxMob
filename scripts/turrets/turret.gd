@@ -138,7 +138,15 @@ func _apply_visuals() -> void:
 	_barrel.position.z = _barrel_rest.z + _recoil * RECOIL_DISTANCE
 	_flash.visible = _flash_left > 0.0
 	var p: float = _pulse_left / PULSE_TIME
-	_pivot.scale = Vector3.ONE * (1.0 + 0.22 * sin(p * PI))
+	# Recul « cartoon » : la partie tournante s'écrase puis rebondit à chaque tir (plus fort
+	# pour la lourde) ; l'impulsion d'amélioration la gonfle.
+	var punch: float = (
+		_recoil
+		* _recoil
+		* (1.6 if data.projectile.category == ProjectileData.Category.HEAVY else 1.0)
+	)
+	var pulse: float = 1.0 + 0.22 * sin(p * PI)
+	_pivot.scale = Vector3(1.0 + 0.09 * punch, 1.0 - 0.13 * punch, 1.0 + 0.09 * punch) * pulse
 	_pulse_ring.visible = _pulse_left > 0.0
 	if _pulse_left > 0.0:
 		var grow: float = 1.0 + (1.0 - p) * 1.8

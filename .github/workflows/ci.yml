@@ -40,5 +40,10 @@ jobs:
           sudo apt-get install -y -qq xvfb libgl1-mesa-dri libglx-mesa0 libxcursor1 libxinerama1 libxi6 libxrandr2
           mkdir -p reports/shots
           xvfb-run -a -s "-screen 0 1280x2000x24" godot --rendering-driver opengl3 --resolution 540x960 --path . res://scenes/tools/capture.tscn -- "$PWD/reports/shots"
+      - name: Séquence d'effets (hache lourde, rendu logiciel, informatif)
+        continue-on-error: true
+        run: |
+          mkdir -p reports/fx
+          xvfb-run -a -s "-screen 0 1280x2000x24" godot --rendering-driver opengl3 --resolution 540x960 --path . res://scenes/tools/fx_showcase.tscn -- "$PWD/reports/fx"
       - uses: actions/upload-artifact@v4
         with: { name: reports, path: reports }

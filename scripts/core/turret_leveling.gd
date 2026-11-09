@@ -27,6 +27,8 @@ static func build(data: TurretData) -> Array[TurretLevelData]:
 		if row.axe_count <= 1:
 			row.fan_angle_deg = 0.0
 		row.visual_tier = tier_of(data, level)
+		if data.projectile != null:
+			row.splash_radius = data.projectile.splash_radius * pow(data.splash_growth, n)
 		out.append(row)
 	return out
 
@@ -58,6 +60,10 @@ static func describe(now: TurretLevelData, next: TurretLevelData) -> PackedStrin
 	)
 	var next_axes: int = next.axe_count if next != null else -1
 	lines.append(_line_int("Haches", now.axe_count, next_axes))
+	if now.splash_radius > 0.0:
+		lines.append(
+			_line("Zone", now.splash_radius, next.splash_radius if next != null else -1.0, "%.1f m")
+		)
 	if now.pierce > 0 or (next != null and next.pierce > 0):
 		var next_pierce: int = next.pierce if next != null else -1
 		lines.append(_line_int("Perforation", now.pierce, next_pierce))

@@ -27,6 +27,10 @@ func _run_all() -> void:
 	for dir_path: String in TEST_DIRS:
 		await _run_dir(dir_path)
 	print("[tests] %d assertions ok, %d echecs" % [_passed, _failures])
+	_silence_audio()
+	# Quelques images pour que le serveur audio libère les lectures arrêtées avant la sortie.
+	for i: int in 12:
+		await process_frame
 	quit(1 if _failures > 0 else 0)
 
 
@@ -56,3 +60,11 @@ func check(cond: bool, msg: String = "") -> void:
 	else:
 		_failures += 1
 		printerr("[FAIL] %s %s" % [_current, msg])
+
+
+## Libère les flux sonores avant la sortie (sinon le moteur signale des ressources « encore en
+## usage » : sans conséquence, mais bruyant dans les journaux).
+func _silence_audio() -> void:
+	var audio: Node = root.get_node_or_null("AudioManager")
+	if audio != null:
+		audio.call("shutdown")

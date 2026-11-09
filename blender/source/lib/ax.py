@@ -69,6 +69,16 @@ COLORS = {
     "steel": "#B7C6D6", "steel_light": "#E4EDF6", "steel_dark": "#7388A3",
 }
 ORDER = list(COLORS)
+# Roundeur par défaut des boîtes/prismes sans congé explicite (phase 5).
+AUTO_ROUND = True
+AUTO_BEVEL_RATIO = 0.16
+AUTO_BEVEL_MAX = 0.06
+# Les petits détails (sourcils, lamelles) restent francs : on n'arrondit que les volumes visibles.
+AUTO_MIN_SIZE = 0.08
+AUTO_ROUND_MIN_RADIUS = 0.07
+AUTO_ROUND_BELOW = 8
+AUTO_ROUND_SEGS = 10
+AUTO_ROUND_RINGS = 6
 GRID = 8
 CELL = 32
 PAD = 2.5  # marge (texels) évitant les débordements de couleur entre cellules
@@ -105,11 +115,13 @@ def palette_pixels() -> np.ndarray:
         base = np.array(hex_rgb(COLORS[name]), dtype=np.float32)
         y_c = np.clip(ys, PAD, CELL - 1 - PAD)
         t = ((y_c - PAD) / (CELL - 1 - 2 * PAD))[:, None, None]  # 0 bas .. 1 haut
-        shade = 0.78 + 0.16 * t + 0.06 * t * t  # bas sombre, haut clair
+        shade = 0.84 + 0.12 * t + 0.04 * t * t  # dégradé doux (phase 5 : moins contrasté)
         light = np.clip(base * shade + (1.0 - base) * 0.05 * t * t, 0, 1)
+        # Couleurs un peu plus vives et chaudes : style « jouet » (phase 5).
+        grey = light.mean(axis=2, keepdims=True)
+        light = np.clip(grey + (light - grey) * 1.07, 0, 1)
         cell = np.broadcast_to(light, (CELL, CELL, 3)).copy()
-        noise = _hash_noise(CELL, CELL, 1000 + i)[:, :, None]
-        cell *= 1.0 + (noise - 0.5) * 0.07
+        # Phase 5 : plus de grain dans la palette (textures lisses, aplats nets et doux).
         y0 = (GRID - 1 - row) * CELL  # indice de ligne depuis le bas
         img[y0 : y0 + CELL, col * CELL : (col + 1) * CELL, :] = cell
     return (np.clip(img, 0, 1) * 255.0 + 0.5).astype(np.uint8)
@@ -271,6 +283,9 @@ def lathe(profile, segs=16, xf=None, cap_bottom=True, cap_top=True) -> bmesh.typ
 
 def ellipsoid(radii=(0.5, 0.5, 0.5), segs=14, rings=9, xf=None) -> bmesh.types.BMesh:
     rx, ry, rz = radii
+    if AUTO_ROUND and max(radii) >= AUTO_ROUND_MIN_RADIUS and segs <= AUTO_ROUND_BELOW:
+        # Phase 5 : yeux, articulations, pinces... plus de facettes visibles (silhouette ronde).
+        segs, rings = AUTO_ROUND_SEGS, max(rings, AUTO_ROUND_RINGS)
     prof = []
     for i in range(rings + 1):
         a = -math.pi / 2 + math.pi * i / rings
@@ -331,6 +346,11 @@ def box(size=(1, 1, 1), bevel=0.0, seg=2, xf=None) -> bmesh.types.BMesh:
     bm = bmesh.new()
     bmesh.ops.create_cube(bm, size=1.0)
     bmesh.ops.scale(bm, vec=tuple(size), verts=bm.verts[:])
+    if bevel <= 0 and AUTO_ROUND and min(size) >= AUTO_MIN_SIZE:
+        # Phase 5 : plus d'arêtes vives sur les boîtes — un petit chanfrein arrondit la silhouette
+        # (le lissage des normales, `crease` 66°, en fait un congé doux).
+        bevel = min(AUTO_BEVEL_MAX, AUTO_BEVEL_RATIO * min(size))
+        seg = 1
     if bevel > 0:
         bmesh.ops.bevel(
             bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], offset=bevel, offset_type="OFFSET",
@@ -352,6 +372,9 @@ def prism(points, thick=0.1, bevel=0.0, seg=2, xf=None) -> bmesh.types.BMesh:
         j = (i + 1) % n
         bm.faces.new((bot[i], bot[j], top[j], top[i]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    if bevel <= 0 and AUTO_ROUND and thick >= AUTO_MIN_SIZE:
+        bevel = min(AUTO_BEVEL_MAX, AUTO_BEVEL_RATIO * min(thick, 1.0))
+        seg = 1
     if bevel > 0:
         bmesh.ops.bevel(
             bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], offset=bevel, offset_type="OFFSET",
@@ -462,7 +485,7 @@ class Mesher:
         return self.groups.index(name)
 
     def add(
-        self, tmp, color, bone=None, smooth=True, crease=38.0, grad=1.0, weights_t=None,
+        self, tmp, color, bone=None, smooth=True, crease=66.0, grad=1.0, weights_t=None,
         mirror_bone=None,
     ) -> None:
         """Ajoute une pièce. `color` : nom de palette, ou fonction(centre, normale) -> nom.

@@ -30,3 +30,30 @@ signal boss_phase_changed(enemy_id: int, phase: int)
 signal boss_defeated(enemy_id: int, reward: int)
 signal shockwave(position: Vector2, radius: float)
 signal upgrade_denied(turret_id: int)
+
+# Ajouts de la phase 5 (game feel : effets, son, caméra, performance)
+## Impact de zone (hache lourde) : centre, rayon, dégâts bruts AU CENTRE de la zone, catégorie,
+## ennemi touché en direct (déjà frappé : exclu de la zone), part des dégâts restante au bord,
+## vitesse de repoussement au centre. `axe_splash_resolved` donne ensuite le nombre de touchés.
+signal axe_splash(
+	position: Vector2,
+	radius: float,
+	raw_damage: float,
+	category: int,
+	source_id: int,
+	falloff: float,
+	knockback: float
+)
+signal axe_splash_resolved(position: Vector2, radius: float, hits: int)
+signal enemy_spawned(enemy_id: int, position: Vector2)
+## Une pièce (cosmétique) arrive au joueur : `streak` = nombre de pièces récentes (hauteur du son).
+signal coin_collected(streak: int)
+## Série d'éliminations rapprochées (anneau + son montant).
+signal multi_kill(count: int, position: Vector3)
+## Arrêt sur image / ralenti demandé : durée en secondes RÉELLES, échelle de temps pendant.
+signal time_punch(duration: float, scale: float)
+signal quality_changed(tier: int)
+## Un pas du héros (son de pas dans le sable) ; `speed_ratio` 0..1 règle le volume.
+signal player_step(speed_ratio: float)
+## Un ennemi arme son attaque (`charging` : charge télégraphiée du boss) : son d'avertissement.
+signal enemy_windup(enemy_id: int, charging: bool)

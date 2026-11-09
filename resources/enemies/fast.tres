@@ -1,6 +1,8 @@
-[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/enemy_data.gd" id="1_s"]
+
+[ext_resource type="Resource" path="res://resources/enemies/juice_shrimp.tres" id="9_juice"]
 
 [resource]
 script = ExtResource("1_s")
@@ -22,3 +24,5 @@ unlock_wave = 3
 spawn_weight = 0.7
 visual_scale = 1.2
 color = Color(1, 0.44, 0.68, 1)
+juice = ExtResource("9_juice")
+sound_kind = &"squish"

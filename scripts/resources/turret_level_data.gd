@@ -15,3 +15,5 @@ extends Resource
 @export var pierce: int = 0
 ## Palier visuel (0 = niveaux 1-3, 1 = 4-6, 2 = 7-9, 3 = niveau 10 par défaut).
 @export var visual_tier: int = 0
+## Rayon de l'impact de zone de la hache (m, 0 = aucune zone) ; croît avec le niveau.
+@export var splash_radius: float = 0.0

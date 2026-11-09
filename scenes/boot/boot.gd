@@ -22,6 +22,9 @@ func _ready() -> void:
 		"AxMob - prototype (phase 3)\nGodot %s\nrenderer: %s" % [v.get("string", "?"), renderer]
 	)
 	_build_buttons()
+	# Musique du menu (la partie lance la sienne) : fondu enchaîné, ambiance coupée.
+	AudioManager.stop_ambience()
+	AudioManager.play_music(&"menu", 1.0)
 	UIManager.push_back(self, _on_back)
 	print("[AxMob] boot ok - Godot ", v.get("string", "?"), " - ", renderer)
 

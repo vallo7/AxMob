@@ -100,6 +100,11 @@ func _run_all() -> void:
 			% [_runs, POLICIES.size(), _seconds, _out, _out]
 		)
 	)
+	var audio: Node = _tree.root.get_node_or_null("AudioManager")
+	if audio != null:
+		audio.call("shutdown")
+	for i: int in 12:
+		await _tree.process_frame
 	_tree.quit(0)
 
 

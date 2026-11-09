@@ -15,6 +15,8 @@ run/max_fps=60
 EventBus="*res://scripts/core/event_bus.gd"
 UIManager="*res://scripts/managers/ui_manager.gd"
 Haptics="*res://scripts/haptics/haptics.gd"
+QualityManager="*res://scripts/perf/quality_manager.gd"
+AudioManager="*res://scripts/audio/audio_manager.gd"
 
 [debug]
 
@@ -34,6 +36,12 @@ window/size/window_height_override=640
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep_width"
 window/handheld/orientation=1
+
+[physics]
+
+common/physics_jitter_fix=0.0
+common/physics_interpolation=true
+common/max_physics_steps_per_frame=4
 
 [input_devices]
 

@@ -7,7 +7,7 @@
 script = ExtResource("1_s")
 id = &"multi"
 display_name = "Multi"
-damage = 9.0
+damage = 12.5
 fire_rate = 1.0
 attack_range = 16.5
 rotation_speed = 5.0

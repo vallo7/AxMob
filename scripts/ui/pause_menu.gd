@@ -13,6 +13,8 @@ const UPGRADE_MODE_NAMES: Array[String] = ["Arrêt total", "Ralenti", "Aucune pa
 var _haptics_button: Button
 var _haptics_test_button: Button
 var _mode_button: Button
+var _quality_button: Button
+var _sound_button: Button
 
 
 func _ready() -> void:
@@ -24,8 +26,8 @@ func _ready() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
 	var box: VBoxContainer = VBoxContainer.new()
-	box.add_theme_constant_override("separation", 24)
-	box.position = Vector2(190.0, 360.0)
+	box.add_theme_constant_override("separation", 18)
+	box.position = Vector2(190.0, 280.0)
 	box.custom_minimum_size = Vector2(700.0, 0.0)
 	add_child(box)
 	box.add_child(UiKit.label("PAUSE", 96, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
@@ -47,6 +49,12 @@ func _ready() -> void:
 	_mode_button = UiKit.button("", Vector2(700.0, 100.0), 38)
 	_mode_button.pressed.connect(func() -> void: upgrade_mode_pressed.emit())
 	box.add_child(_mode_button)
+	_quality_button = UiKit.button("", Vector2(700.0, 100.0), 38)
+	_quality_button.pressed.connect(_on_quality_pressed)
+	box.add_child(_quality_button)
+	_sound_button = UiKit.button("", Vector2(700.0, 100.0), 38)
+	_sound_button.pressed.connect(_on_sound_pressed)
+	box.add_child(_sound_button)
 	visibility_changed.connect(refresh_labels)
 
 
@@ -54,6 +62,8 @@ func refresh_labels() -> void:
 	_haptics_button.text = "VIBRATIONS : %s" % UserSettings.HAPTICS_NAMES[Haptics.level()]
 	var mode: int = UserSettings.upgrade_pause(0)
 	_mode_button.text = "AMÉLIORATIONS : %s" % UPGRADE_MODE_NAMES[mode]
+	_quality_button.text = "QUALITÉ : %s" % QualityManager.mode_label()
+	_sound_button.text = "SON : %s" % AudioManager.sound_label()
 
 
 func _on_haptics_pressed() -> void:
@@ -67,3 +77,15 @@ func _on_haptics_pressed() -> void:
 ## le problème est hors du jeu (réglages du téléphone) ou dans l'APK (permission).
 func _on_haptics_test_pressed() -> void:
 	UIManager.toast(Haptics.test_vibration())
+
+
+## AUTO -> BAS -> MOYEN -> ÉLEVÉ : sauvegardé ; le profil s'applique tout de suite.
+func _on_quality_pressed() -> void:
+	QualityManager.cycle_mode()
+	refresh_labels()
+
+
+## Musique + effets -> effets seuls -> silence.
+func _on_sound_pressed() -> void:
+	AudioManager.cycle_sound_mode()
+	refresh_labels()

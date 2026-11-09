@@ -7,6 +7,7 @@ const CONFIG_PATH: String = "res://resources/balancing/game_config.tres"
 const BALANCE_PATH: String = "res://resources/balancing/balance_config.tres"
 const WAVES_PATH: String = "res://resources/waves/wave_table.tres"
 const HAPTICS_PATH: String = "res://resources/balancing/haptics_config.tres"
+const FEEL_PATH: String = "res://resources/balancing/feel_config.tres"
 ## Ordre = emplacements des tourelles (sens horaire depuis le haut-droit).
 const TURRET_PATHS: Array[String] = [
 	"res://resources/turrets/rapid.tres",
@@ -35,6 +36,10 @@ static func enemies() -> Array[EnemyData]:
 
 static func haptics() -> HapticsConfig:
 	return load(HAPTICS_PATH) as HapticsConfig
+
+
+static func feel() -> FeelConfig:
+	return load(FEEL_PATH) as FeelConfig
 
 
 static func turrets() -> Array[TurretData]:

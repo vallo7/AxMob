@@ -30,6 +30,8 @@ extends Resource
 @export var range_growth: float = 1.025
 @export var rotation_growth: float = 1.04
 @export var projectile_speed_growth: float = 1.01
+## Croissance du rayon de zone par niveau (hache à impact de zone).
+@export var splash_growth: float = 1.03
 ## Nombre de haches / de perforations par niveau (index 0 = niveau 1). Vide = valeur de base.
 @export var axe_count_steps: PackedInt32Array = PackedInt32Array()
 @export var pierce_steps: PackedInt32Array = PackedInt32Array()

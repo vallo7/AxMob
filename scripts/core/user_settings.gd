@@ -52,3 +52,30 @@ static func upgrade_pause(fallback: int) -> int:
 
 static func set_upgrade_pause(mode: int) -> void:
 	_set_int("gameplay", "upgrade_pause", clampi(mode, 0, 2))
+
+
+## Mode de qualité graphique : 0 = auto (gouverneur), 1 = bas, 2 = moyen, 3 = élevé.
+static func quality_mode() -> int:
+	return _get_int("graphics", "quality_mode", 0, 3)
+
+
+static func set_quality_mode(mode: int) -> void:
+	_set_int("graphics", "quality_mode", clampi(mode, 0, 3))
+
+
+## Dernier profil retenu par le gouverneur (point de départ du prochain lancement).
+static func auto_tier() -> int:
+	return _get_int("graphics", "auto_tier", QualityProfile.Tier.MEDIUM, 2)
+
+
+static func set_auto_tier(tier: int) -> void:
+	_set_int("graphics", "auto_tier", clampi(tier, 0, 2))
+
+
+## Son : 0 = musique + effets, 1 = effets seuls, 2 = silence.
+static func sound_mode() -> int:
+	return _get_int("audio", "sound_mode", 0, 2)
+
+
+static func set_sound_mode(mode: int) -> void:
+	_set_int("audio", "sound_mode", clampi(mode, 0, 2))

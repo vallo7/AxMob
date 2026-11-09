@@ -37,5 +37,7 @@ void fragment() {
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
 	float lit = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0);
-	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * lit * lit * 0.8;
+	// Phase 5 : courbe plus douce (moins de contraste) = surfaces plus lisses, rendu « jouet ».
+	float soft = mix(lit, lit * lit, 0.45);
+	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * soft * 0.86;
 }

@@ -13,6 +13,8 @@ uniform float model_scale = 1.0;
 // Distance entre le bord de l'île et la ligne d'eau (la pente passe sous l'eau).
 uniform float shore_offset = 1.13;
 uniform float edge_base = 22.5;
+// Détail (profil de qualité) : 0 = aplat + écume de rivage, 0.5 = + reflets, 1 = + lignes de vagues.
+uniform float detail : hint_range(0.0, 1.0) = 1.0;
 
 varying vec2 plan;
 
@@ -33,13 +35,18 @@ void fragment() {
 	vec3 col = mix(shallow_color.rgb, mid_color.rgb, smoothstep(0.0, 0.35, depth));
 	col = mix(col, deep_color.rgb, smoothstep(0.3, 1.0, depth));
 	// reflets : bandes douces qui dérivent
-	float caustic = sin(p.x * 0.9 + TIME * 0.6) * sin(p.y * 0.8 - TIME * 0.5);
-	col += 0.04 * smoothstep(0.35, 0.9, caustic);
+	if (detail > 0.3) {
+		float caustic = sin(p.x * 0.9 + TIME * 0.6) * sin(p.y * 0.8 - TIME * 0.5);
+		col += 0.04 * smoothstep(0.35, 0.9, caustic);
+	}
 	// écume : liseré qui pulse au rivage + lignes de vagues qui s'éloignent
 	float pulse = 0.55 + 0.25 * sin(TIME * 1.3 + th * 12.0) + 0.1 * sin(TIME * 2.1 + th * 31.0);
 	float shore_foam = 1.0 - smoothstep(0.0, pulse, d);
-	float ripple = sin(d * 2.4 - TIME * 1.5 + sin(th * 9.0) * 1.6);
-	float lines = smoothstep(0.86, 0.97, ripple) * smoothstep(0.7, 1.3, d) * (1.0 - smoothstep(2.5, 8.0, d));
+	float lines = 0.0;
+	if (detail > 0.7) {
+		float ripple = sin(d * 2.4 - TIME * 1.5 + sin(th * 9.0) * 1.6);
+		lines = smoothstep(0.80, 0.98, ripple) * smoothstep(0.7, 1.3, d) * (1.0 - smoothstep(2.5, 8.0, d));
+	}
 	float foam = clamp(shore_foam + lines * 0.75, 0.0, 1.0);
 	ALBEDO = mix(col, foam_color.rgb, foam);
 }
