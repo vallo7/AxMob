@@ -61,6 +61,8 @@ def build():
     for sx in (-1, 1):
         m.add(ax.ellipsoid((0.085, 0.07, 0.095), 8, 5, M((sx * 0.14, 1.24, 0.58))), "white", "head", crease=0)
         m.add(ax.ellipsoid((0.045, 0.03, 0.055), 6, 4, M((sx * 0.14, 1.295, 0.58))), "black", "head", crease=0)
+        # Reflet cartoon dans la pupille (le regard « vit »)
+        m.add(ax.ellipsoid((0.025, 0.012, 0.025), 6, 4, M((sx * 0.14 + 0.014, 1.317, 0.602))), "white", "head", crease=0)
         m.add(ax.box((0.17, 0.05, 0.04), 0.0, 1, M((sx * 0.14, 1.25, 0.69), (0, -sx * 26, 0))), "green_dark", "head", crease=0)
     m.add(ax.ellipsoid((0.13, 0.04, 0.025), 8, 3, M((0, 1.27, 0.4))), "ink", "head", crease=0)
     # pattes (cylindres épais) + griffes

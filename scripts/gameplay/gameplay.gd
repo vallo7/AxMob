@@ -11,7 +11,6 @@ extends Node3D
 enum State { RUN, PAUSED, UPGRADING, DYING, GAME_OVER }
 
 const GAME_OVER_DELAY: float = 1.4
-const BOOT_SCENE: String = "res://scenes/boot/boot.tscn"
 
 ## Graine des vagues (0 = aléatoire) : à fixer AVANT d'ajouter la scène à l'arbre (simulateur).
 var run_seed: int = 0
@@ -57,6 +56,8 @@ func _ready() -> void:
 	)
 	_feel = DataRegistry.feel()
 	ctx = RunContext.new(config, DataRegistry.balance())
+	# Améliorations permanentes achetées au menu : appliquées AVANT la création des tourelles.
+	ctx.bonuses = SaveManager.bonuses()
 	_arena.setup(config)
 	_player.setup(ctx)
 	_enemies.setup(ctx)
@@ -164,7 +165,9 @@ func _on_player_died() -> void:
 func _finish() -> void:
 	state = State.GAME_OVER
 	EventBus.game_over.emit(ctx.wave, ctx.coins)
-	_game_over.show_results(ctx)
+	# Versement : pièces non dépensées conservées, records et statistiques mis à jour, sauvegarde.
+	var result: Dictionary = SaveManager.record_run(ctx)
+	_game_over.show_results(ctx, result)
 
 
 # --- Navigation : bouton retour du téléphone ---------------------------------------------------
@@ -217,6 +220,10 @@ func _toggle_upgrades() -> void:
 
 
 func _open_upgrades() -> void:
+	# Le réglage peut avoir changé dans RÉGLAGES (pause) : on relit le choix du joueur.
+	ctx.config.upgrade_pause = (
+		UserSettings.upgrade_pause(int(ctx.config.upgrade_pause)) as GameConfig.UpgradePause
+	)
 	state = State.UPGRADING
 	_panel.open()
 	_joystick.exclusion_rects = [_panel.sheet_rect()]
@@ -242,31 +249,33 @@ func _try_buy_for_capture() -> void:
 
 func _on_upgrade_pressed(turret_id: int) -> void:
 	if not _upgrades.try_upgrade(turret_id):
+		AudioManager.play_ui(&"ui_denied")
 		UIManager.toast(
-			"Pièces insuffisantes" if not _upgrades.is_max(turret_id) else "Niveau maximal"
+			Loc.t("not_enough") if not _upgrades.is_max(turret_id) else Loc.t("max_level")
 		)
 
 
-## Arrêt total -> Ralenti -> Aucune pause (sauvegardé).
+## Le joueur a changé le comportement « pendant les améliorations » dans RÉGLAGES : on le relit.
 func _cycle_upgrade_mode() -> void:
-	var next: int = (int(ctx.config.upgrade_pause) + 1) % 3
-	ctx.config.upgrade_pause = next as GameConfig.UpgradePause
-	UserSettings.set_upgrade_pause(next)
-	_pause_menu.refresh_labels()
+	ctx.config.upgrade_pause = (
+		UserSettings.upgrade_pause(int(ctx.config.upgrade_pause)) as GameConfig.UpgradePause
+	)
 
 
 func _restart() -> void:
 	get_tree().paused = false
-	get_tree().reload_current_scene()
+	SaveManager.record_run(ctx)
+	SceneLoader.go(LoadManifest.GAMEPLAY_SCENE, {"quick": true})
 
 
 func _to_menu() -> void:
 	get_tree().paused = false
+	SaveManager.record_run(ctx)
 	menu_action.call()
 
 
 func _open_menu() -> void:
-	get_tree().change_scene_to_file(BOOT_SCENE)
+	SceneLoader.go(LoadManifest.MENU_SCENE, {"quick": true})
 
 
 func _notification(what: int) -> void:

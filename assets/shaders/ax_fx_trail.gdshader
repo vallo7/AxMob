@@ -13,11 +13,11 @@ void vertex() {
 }
 
 void fragment() {
-	float along = pow(clamp(1.0 - v_u, 0.0, 1.0), 1.7);
-	float across = 1.0 - v_v * v_v;
-	// Cœur plus lumineux au centre : un trait « chaud » dans un halo coloré.
-	float core = pow(across, 5.0) * along;
-	// Teinte saturée sur les bords, cœur éclairci : lisible sur le sable clair comme sur la mer.
-	ALBEDO = mix(COLOR.rgb, vec3(1.0), core * 0.75);
-	ALPHA = clamp(along * across * COLOR.a * 1.25, 0.0, 1.0);
+	float along = clamp(1.0 - v_u, 0.0, 1.0);
+	// Largeur qui s'effile vers la queue ; bord net (aplat), cœur clair.
+	float w = mix(0.12, 1.0, pow(along, 0.75));
+	float edge = 1.0 - smoothstep(w - 0.14, w, abs(v_v));
+	float core = 1.0 - smoothstep(w * 0.28, w * 0.46, abs(v_v));
+	ALBEDO = mix(COLOR.rgb, vec3(1.0), core * 0.9);
+	ALPHA = clamp(edge * smoothstep(0.0, 0.22, along) * COLOR.a * 1.2, 0.0, 1.0);
 }

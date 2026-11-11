@@ -40,6 +40,16 @@ jobs:
           sudo apt-get install -y -qq xvfb libgl1-mesa-dri libglx-mesa0 libxcursor1 libxinerama1 libxi6 libxrandr2
           mkdir -p reports/shots
           xvfb-run -a -s "-screen 0 1280x2000x24" godot --rendering-driver opengl3 --resolution 540x960 --path . res://scenes/tools/capture.tscn -- "$PWD/reports/shots"
+      - name: Art d'interface (régénération reproductible, informatif)
+        continue-on-error: true
+        run: |
+          pip install numpy scipy pillow
+          python3 ui_src/build_ui_art.py
+      - name: Captures de l'interface, phase 6 (rendu logiciel, informatif)
+        continue-on-error: true
+        run: |
+          mkdir -p reports/ui
+          xvfb-run -a -s "-screen 0 1280x2000x24" godot --rendering-driver opengl3 --resolution 540x960 --path . res://scenes/tools/capture_ui.tscn -- "$PWD/reports/ui" fr
       - name: Séquence d'effets (hache lourde, rendu logiciel, informatif)
         continue-on-error: true
         run: |

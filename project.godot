@@ -5,18 +5,26 @@ config_version=5
 
 config/name="AxMob"
 config/description="AxMob - ValloGame"
-run/main_scene="res://scenes/boot/boot.tscn"
+config/version="0.6.0"
+config/icon="res://assets/ui/brand/app_icon.png"
+run/main_scene="res://scenes/boot/splash.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/quit_on_go_back=false
 run/max_fps=60
+boot_splash/bg_color=Color(1, 1, 1, 1)
+boot_splash/show_image=false
+boot_splash/fullsize=false
 
 [autoload]
 
 EventBus="*res://scripts/core/event_bus.gd"
 UIManager="*res://scripts/managers/ui_manager.gd"
 Haptics="*res://scripts/haptics/haptics.gd"
+Diagnostics="*res://scripts/perf/diagnostics.gd"
 QualityManager="*res://scripts/perf/quality_manager.gd"
 AudioManager="*res://scripts/audio/audio_manager.gd"
+SaveManager="*res://scripts/save/save_manager.gd"
+SceneLoader="*res://scripts/ui/loading/scene_loader.gd"
 
 [debug]
 
@@ -52,3 +60,5 @@ pointing/emulate_touch_from_mouse=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(1, 1, 1, 1)
+anti_aliasing/quality/msaa_3d=0

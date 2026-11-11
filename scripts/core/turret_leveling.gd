@@ -51,22 +51,31 @@ static func _step(steps: PackedInt32Array, level: int, fallback: int) -> int:
 ## (niveau maximal) : on n'affiche alors que la valeur actuelle.
 static func describe(now: TurretLevelData, next: TurretLevelData) -> PackedStringArray:
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append(_line("Dégâts", now.damage, next.damage if next != null else -1.0, "%.1f"))
 	lines.append(
-		_line("Cadence", now.fire_rate, next.fire_rate if next != null else -1.0, "%.2f/s")
+		_line(Loc.t("st_damage"), now.damage, next.damage if next != null else -1.0, "%.1f")
 	)
 	lines.append(
-		_line("Portée", now.attack_range, next.attack_range if next != null else -1.0, "%.1f")
+		_line(Loc.t("st_rate"), now.fire_rate, next.fire_rate if next != null else -1.0, "%.2f/s")
+	)
+	lines.append(
+		_line(
+			Loc.t("st_range"), now.attack_range, next.attack_range if next != null else -1.0, "%.1f"
+		)
 	)
 	var next_axes: int = next.axe_count if next != null else -1
-	lines.append(_line_int("Haches", now.axe_count, next_axes))
+	lines.append(_line_int(Loc.t("st_axes"), now.axe_count, next_axes))
 	if now.splash_radius > 0.0:
 		lines.append(
-			_line("Zone", now.splash_radius, next.splash_radius if next != null else -1.0, "%.1f m")
+			_line(
+				Loc.t("st_zone"),
+				now.splash_radius,
+				next.splash_radius if next != null else -1.0,
+				"%.1f m"
+			)
 		)
 	if now.pierce > 0 or (next != null and next.pierce > 0):
 		var next_pierce: int = next.pierce if next != null else -1
-		lines.append(_line_int("Perforation", now.pierce, next_pierce))
+		lines.append(_line_int(Loc.t("st_pierce"), now.pierce, next_pierce))
 	return lines
 
 

@@ -1,12 +1,13 @@
 class_name TurretCard
 extends Control
-## Carte d'une catégorie de tourelle : nom, niveau, statistiques actuelles → suivantes
-## (aperçu du changement), coût et bouton d'amélioration.
+## Carte d'une catégorie de tourelle (phase 6) : icône de hache, nom, niveau, statistiques
+## actuelles → suivantes (aperçu du changement), bouton d'amélioration avec le coût en pièces.
 
 signal upgrade_pressed(turret_id: int)
 
-const CARD_SIZE: Vector2 = Vector2(500.0, 300.0)
+const CARD_SIZE: Vector2 = Vector2(500.0, 336.0)
 const MAX_LINES: int = 5
+const ICONS: Array[String] = ["axe_light", "axe_heavy", "axe_multi", "axe_pierce"]
 
 var turret_id: int = 0
 
@@ -14,7 +15,8 @@ var _data: TurretData
 var _name: Label
 var _level: Label
 var _lines: Array[Label] = []
-var _button: Button
+var _button: AxButton
+var _shown_level: int = -1
 
 
 func setup(id: int, data: TurretData) -> void:
@@ -22,31 +24,39 @@ func setup(id: int, data: TurretData) -> void:
 	_data = data
 	custom_minimum_size = CARD_SIZE
 	size = CARD_SIZE
-	var bg: Panel = Panel.new()
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.add_theme_stylebox_override("panel", UiKit.panel_box())
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-	var strip: ColorRect = ColorRect.new()
-	strip.color = data.color
-	strip.position = Vector2(0.0, 18.0)
-	strip.size = Vector2(10.0, CARD_SIZE.y - 36.0)
-	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(strip)
-	_name = UiKit.label(data.display_name.to_upper(), 40, data.color.lightened(0.25))
-	_name.position = Vector2(28.0, 10.0)
+	add_child(UiArt.nine("panels/panel_card", 56, 56, 56, 62))
+	var icon: TextureRect = UiArt.image("icons/" + ICONS[id % ICONS.size()], Vector2(92, 92))
+	icon.position = Vector2(20.0, 14.0)
+	icon.size = Vector2(92, 92)
+	add_child(icon)
+	_name = UiArt.label(
+		(
+			Loc.t("tur_name_" + str(data.id)).to_upper()
+			if Loc.has_key("tur_name_" + str(data.id))
+			else data.display_name.to_upper()
+		),
+		34,
+		UiArt.TEXT_DARK,
+		Color(1, 1, 1, 0),
+		0
+	)
+	_name.position = Vector2(116.0, 16.0)
+	_name.size = Vector2(250.0, 44.0)
+	_name.clip_text = true
 	add_child(_name)
-	_level = UiKit.label("", 34, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
-	_level.position = Vector2(CARD_SIZE.x - 200.0, 14.0)
-	_level.size = Vector2(180.0, 44.0)
+	_level = UiArt.label("", 30, data.color.darkened(0.25), Color(1, 1, 1, 0), 0)
+	_level.position = Vector2(116.0, 58.0)
+	_level.size = Vector2(250.0, 40.0)
 	add_child(_level)
 	for i: int in MAX_LINES:
-		var line: Label = UiKit.label("", 27)
-		line.position = Vector2(28.0, 54.0 + 30.0 * float(i))
+		var line: Label = UiArt.label("", 25, UiArt.TEXT_DARK, Color(1, 1, 1, 0), 0)
+		line.position = Vector2(30.0, 102.0 + 28.0 * float(i))
+		line.size = Vector2(CARD_SIZE.x - 60.0, 30.0)
 		add_child(line)
 		_lines.append(line)
-	_button = UiKit.button("", Vector2(CARD_SIZE.x - 40.0, 64.0), 36)
-	_button.position = Vector2(20.0, CARD_SIZE.y - 76.0)
+	_button = AxButton.make("", "yellow", Vector2(CARD_SIZE.x - 36.0, 84.0), 34, "coin_s")
+	_button.small = true
+	_button.position = Vector2(18.0, CARD_SIZE.y - 98.0)
 	_button.pressed.connect(func() -> void: upgrade_pressed.emit(turret_id))
 	add_child(_button)
 
@@ -54,7 +64,17 @@ func setup(id: int, data: TurretData) -> void:
 func refresh(ctx: RunContext, upgrades: UpgradeManager) -> void:
 	var level: int = ctx.turret_levels[turret_id]
 	var max_level: int = ctx.turret_max_level(turret_id)
-	_level.text = "NIV %d/%d" % [level, max_level]
+	_level.text = Loc.t("tur_level", [level, max_level])
+	if _shown_level >= 0 and level > _shown_level:
+		pivot_offset = size * 0.5
+		scale = Vector2(1.06, 1.06)
+		(
+			create_tween()
+			. tween_property(self, "scale", Vector2.ONE, 0.3)
+			. set_trans(Tween.TRANS_BACK)
+			. set_ease(Tween.EASE_OUT)
+		)
+	_shown_level = level
 	var now: TurretLevelData = ctx.turret_stats(turret_id)
 	var next: TurretLevelData = null
 	if level < max_level:
@@ -66,17 +86,12 @@ func refresh(ctx: RunContext, upgrades: UpgradeManager) -> void:
 			_lines[i].text = text[i]
 	var cost: int = upgrades.cost_to_upgrade(turret_id)
 	if cost < 0:
-		_button.text = "NIVEAU MAX"
+		_button.icon_name = ""
+		_button.text = Loc.t("tur_max")
 		_button.disabled = true
 		return
 	_button.disabled = false
-	_button.text = "AMÉLIORER   %d" % cost
-	var ok: bool = upgrades.can_upgrade(turret_id)
-	var pressed_box: StyleBoxFlat = UiKit.panel_box()
-	_button.add_theme_color_override("font_color", UiKit.TEXT if ok else Color(0.85, 0.4, 0.4))
-	_button.add_theme_stylebox_override(
-		"normal", UiKit.button_box(Color(0.82, 0.4, 0.1) if ok else Color(0.16, 0.17, 0.21))
-	)
-	_button.add_theme_stylebox_override(
-		"pressed", pressed_box if not ok else UiKit.button_box(UiKit.ACCENT)
-	)
+	_button.icon_name = "coin_s"
+	_button.text = "%d" % cost
+	# Pas assez de pièces : le bouton reste actif (le toast explique), mais passe en rouge.
+	_button.style = "yellow" if upgrades.can_upgrade(turret_id) else "red"

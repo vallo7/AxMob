@@ -1,6 +1,6 @@
 # AxMob — ValloGame
 
-Arena survival 3D (Godot 4.7.2, GDScript typé, Android portrait). Rapports : `docs/PHASE0.md`, `docs/PHASE2.md` (prototype jouable), `docs/PHASE3.md` (combat et systèmes), `docs/PHASE4.md` (assets Blender, décor plage, vibrations), `docs/PHASE5.md` (game feel : effets, son, caméra, performance).
+Arena survival 3D (Godot 4.7.2, GDScript typé, Android portrait). Rapports : `docs/PHASE0.md`, `docs/PHASE2.md` (prototype jouable), `docs/PHASE3.md` (combat et systèmes), `docs/PHASE4.md` (assets Blender, décor plage, vibrations), `docs/PHASE5.md` (game feel : effets, son, caméra, performance), `docs/PHASE6.md` (interface, cartoon, chargement, anti-plantage).
 
 ## Démarrer en local
 ```bash
@@ -24,7 +24,7 @@ xvfb-run -a godot --rendering-driver opengl3 --resolution 640x640 --path . \
 ```
 
 ## CI (GitHub Actions)
-- `ci.yml` : lint/format, import, tests, simulation d'équilibrage (CSV), budgets d'assets, benchmark.
+- `ci.yml` : lint/format, import, tests, simulation d équilibrage (CSV), budgets d assets, benchmark, captures de l interface.
 - `build-android.yml` : APK debug (artefact) à chaque push sur `main` ; AAB signé sur tag `v*`
   (Secrets : `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_USER`, `ANDROID_KEYSTORE_PASSWORD`).
 - `blender-export.yml` : exécute `blender/source/*.py` et publie GLB, .blend et textures.
@@ -81,3 +81,19 @@ xvfb-run -a godot --rendering-driver opengl3 --resolution 540x960 --path . \
 ```
 Audio : le catalogue de mixage est `scripts/audio/sfx_catalog.gd` (un test vérifie que chaque son
 existe et qu'aucun fichier n'est orphelin). `audio_src/` est ignoré par Godot (`.gdignore`).
+
+## Phase 6 : interface complète, style cartoon, chargement, anti-plantage
+Rapport : `docs/PHASE6.md` (captures dans `docs/phase6/`). Nouveautés : écrans (chargement, menu 3D,
+améliorations permanentes, statistiques, réglages, pause, défaite, HUD), éléments d'interface dans le
+style des visuels fournis, rendu cartoon (ombres colorées, contours, effets), eau refaite, chargeur de
+scènes réel, sauvegarde locale, garde anti-plantage + rapport technique, démarrage Android blanc.
+```bash
+pip install numpy scipy pillow
+python3 ui_src/build_ui_art.py                 # régénère assets/ui/ (éléments fournis + dessinés)
+python3 ui_src/build_ui_art.py --only icons    # un seul groupe (provided|buttons|panels|bars|misc|icons)
+python3 blender/source/water_texture.py        # texture de l'eau (sans Blender)
+xvfb-run -a godot --rendering-driver opengl3 --resolution 540x960 --path . \
+  res://scenes/tools/capture_ui.tscn -- /tmp/ui fr       # captures de tous les écrans (fr | en)
+```
+Les visuels fournis (logo, icône, bannières, pièce, étoile, trophée, cadeau) sont dans
+`ui_src/provided/` ; `ui_src/` est ignoré par Godot (`.gdignore`).

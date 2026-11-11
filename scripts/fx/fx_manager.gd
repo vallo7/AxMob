@@ -27,7 +27,8 @@ const MUZZLE_HEIGHT: float = 1.1
 const COIN_POP_TIME: float = 0.38
 const COIN_GRAVITY: float = 22.0
 ## Poussière : un sable plus foncé que le sol pour rester lisible sur la plage claire.
-const SAND: Color = Color(0.82, 0.62, 0.36, 0.78)
+# poussière cartoon : crème claire (le contour est foncé par le shader)
+const SAND: Color = Color(0.99, 0.93, 0.80, 0.92)
 const WHITE: Color = Color(1.0, 1.0, 1.0, 1.0)
 const GOLD: Color = Color(1.0, 0.82, 0.25, 1.0)
 const CONFETTI: Array[Color] = [

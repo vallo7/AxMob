@@ -24,6 +24,8 @@ func _process(_delta: float) -> bool:
 
 
 func _run_all() -> void:
+	# Les textes attendus par les tests sont en français, quelle que soit la langue de la machine.
+	Loc.override_lang = "fr"
 	for dir_path: String in TEST_DIRS:
 		await _run_dir(dir_path)
 	print("[tests] %d assertions ok, %d echecs" % [_passed, _failures])

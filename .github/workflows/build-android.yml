@@ -37,12 +37,24 @@ jobs:
           "$AAPT2" dump permissions build/axmob-debug.apk | tee build/permissions.txt
           grep -q "android.permission.VIBRATE" build/permissions.txt \
             || { echo "::error::permission VIBRATE absente de l'APK"; exit 1; }
+      # Phase 6 : démarrage BLANC (plus de flash noir / logo Godot). Le thème Android est généré par
+      # l'export : on relit la couleur du fond de démarrage et on la tient pour fausse si elle n'est
+      # pas blanche. Avertissement (pas d'échec) : un téléphone reste la vérification définitive.
+      - name: Vérifier l'écran de démarrage blanc
+        run: |
+          grep -rn "windowSplashScreenBackground\|windowBackground" android/build/res/values*/ | tee build/splash_theme.txt || true
+          if grep -qi "ffffff" build/splash_theme.txt; then
+            echo "Fond de démarrage blanc : OK"
+          else
+            echo "::warning::fond de démarrage Android non blanc dans le thème généré (voir build/splash_theme.txt)"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: axmob-debug-apk
           path: |
             build/axmob-debug.apk
             build/permissions.txt
+            build/splash_theme.txt
   aab-release:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04

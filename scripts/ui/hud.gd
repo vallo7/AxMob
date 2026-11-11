@@ -1,34 +1,44 @@
 class_name Hud
 extends Control
-## HUD discret : PV, vague, temps, pièces, fenêtre de combat, bouton pause, bouton « tourelles »
-## (avec pastille quand une amélioration est abordable) et overlay debug pour les tests.
+## HUD de partie (phase 6, style « bonbon ») : barre de PV avec cœur, fenêtre de combat, vague,
+## temps, pièces, bouton pause et accès aux tourelles (pastille rouge quand une amélioration est
+## abordable). Annonces sur rubans (vague bleu, boss rouge, boss vaincu jaune). Discret : il ne doit
+## pas masquer l'action. L'overlay de mesures n'apparaît que si le réglage « FPS » est actif.
 
 signal pause_pressed
 signal upgrades_pressed
 
-const BAR_W: float = 560.0
-const BAR_H: float = 38.0
+const BAR_W: float = 470.0
 const DEBUG_REFRESH: float = 0.25
+const BANNER_INK: Dictionary = {
+	"blue": Color("#0F3C8A"),
+	"red": Color("#7E1410"),
+	"yellow": Color("#9A5200"),
+}
 
 var _ctx: RunContext
 var _player: PlayerController
 var _projectiles: ProjectileManager
 var _upgrades: UpgradeManager
-var _hp_fill: ColorRect
-var _window_fill: ColorRect
-var _wave_label: Label
-var _time_label: Label
-var _coins_label: Label
-var _banner: Label
+var _hp_bar: AxBar
+var _heart: TextureRect
+var _window_bar: AxBar
+var _wave_pill: AxPill
+var _time_pill: AxPill
+var _coin_pill: AxPill
+var _banner: Control
+var _banner_art: TextureRect
+var _banner_label: Label
 var _debug: Label
-var _upgrade_button: Button
+var _upgrade_button: AxButton
 var _badge: Label
+var _badge_bg: TextureRect
 var _debug_timer: float = 0.0
 var _banner_tween: Tween
 var _vignette: ColorRect
 var _vignette_mat: ShaderMaterial
 var _flash_k: float = 0.0
-var _coin_tween: Tween
+var _last_time_text: String = ""
 
 
 func setup(
@@ -41,7 +51,7 @@ func setup(
 	_player = player
 	_projectiles = projectiles
 	_upgrades = upgrades
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build()
 	EventBus.player_damaged.connect(_on_player_damaged)
@@ -52,113 +62,138 @@ func setup(
 	EventBus.boss_phase_changed.connect(_on_boss_phase)
 	EventBus.boss_defeated.connect(_on_boss_defeated)
 	_on_player_damaged(0.0, _player.health.hp)
+	_hp_bar.set_ratio(clampf(_player.health.hp / _player.health.max_hp, 0.0, 1.0), false)
+	_coin_pill.count_to(_ctx.coins, true)
 
 
 func _process(delta: float) -> void:
 	_update_vignette(delta)
-	_time_label.text = _format_time(_ctx.time)
+	var t: String = _format_time(_ctx.time)
+	if t != _last_time_text:
+		_last_time_text = t
+		_time_pill.set_text(t, false)
 	var window_ratio: float = _ctx.combat.remaining(_ctx.time) / _ctx.config.window_duration
-	_window_fill.size.x = BAR_W * clampf(window_ratio, 0.0, 1.0)
+	_window_bar.set_ratio(clampf(window_ratio, 0.0, 1.0), false)
 	var affordable: int = _upgrades.affordable_count()
 	_badge.visible = affordable > 0
+	_badge_bg.visible = affordable > 0
 	_badge.text = str(affordable)
 	_debug_timer -= delta
-	if _debug_timer <= 0.0:
+	if _debug.visible and _debug_timer <= 0.0:
 		_debug_timer = DEBUG_REFRESH
 		_debug.text = (
-			"%d FPS (%.1f ms)\nennemis %d\nhaches %d\ndraw calls %d\nrythme %.2f\nqualité %s 3D x%.2f"
+			"%d FPS (%.1f ms)\nennemis %d · haches %d\ndraw calls %d\n%s 3D x%.2f\nmém. vidéo %.0f Mo"
 			% [
 				Engine.get_frames_per_second(),
 				Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 				_ctx.enemies.count_living(),
 				_projectiles.active_count(),
 				int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
-				_ctx.pacing,
 				QualityManager.mode_label(),
 				QualityManager.applied_scale,
+				Diagnostics.video_mb,
 			]
 		)
 
 
 func _build() -> void:
 	_vignette = ColorRect.new()
-	_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_vignette_mat = ShaderMaterial.new()
 	_vignette_mat.shader = preload("res://assets/shaders/ax_vignette.gdshader")
 	_vignette.material = _vignette_mat
 	add_child(_vignette)
-	var top: float = UiKit.top_inset() + 24.0
+	var top: float = UiKit.top_inset() + 22.0
 	var width: float = get_viewport_rect().size.x
 	var height: float = get_viewport_rect().size.y
-	var hp_bg: ColorRect = ColorRect.new()
-	hp_bg.color = Color(0.0, 0.0, 0.0, 0.55)
-	hp_bg.position = Vector2(30.0, top)
-	hp_bg.size = Vector2(BAR_W, BAR_H)
-	hp_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(hp_bg)
-	_hp_fill = ColorRect.new()
-	_hp_fill.color = Color(0.85, 0.22, 0.25)
-	_hp_fill.size = Vector2(BAR_W, BAR_H)
-	_hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_bg.add_child(_hp_fill)
-	var window_bg: ColorRect = ColorRect.new()
-	window_bg.color = Color(0.0, 0.0, 0.0, 0.4)
-	window_bg.position = Vector2(30.0, top + BAR_H + 8.0)
-	window_bg.size = Vector2(BAR_W, 12.0)
-	window_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(window_bg)
-	_window_fill = ColorRect.new()
-	_window_fill.color = UiKit.ACCENT
-	_window_fill.size = Vector2(0.0, 12.0)
-	_window_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	window_bg.add_child(_window_fill)
 
-	_wave_label = UiKit.label("VAGUE 0", 46)
-	_wave_label.position = Vector2(30.0, top + BAR_H + 30.0)
-	add_child(_wave_label)
-	_time_label = UiKit.label("0:00", 46, UiKit.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	_time_label.position = Vector2(290.0, top + BAR_H + 30.0)
-	_time_label.size = Vector2(200.0, 60.0)
-	add_child(_time_label)
-	_coins_label = UiKit.label("0", 50, Color(1.0, 0.82, 0.25), HORIZONTAL_ALIGNMENT_RIGHT)
-	_coins_label.position = Vector2(620.0, top - 4.0)
-	_coins_label.size = Vector2(200.0, 60.0)
-	add_child(_coins_label)
+	# PV : cœur + tube rouge.
+	_hp_bar = AxBar.new()
+	_hp_bar.fill_style = "red"
+	_hp_bar.position = Vector2(92.0, top + 14.0)
+	_hp_bar.size = Vector2(BAR_W, 58.0)
+	add_child(_hp_bar)
+	_heart = UiArt.image("icons/heart", Vector2(104, 104))
+	_heart.position = Vector2(24.0, top - 6.0)
+	_heart.size = Vector2(104, 104)
+	_heart.pivot_offset = _heart.size * 0.5
+	add_child(_heart)
+	# Fenêtre de combat : fin tube jaune sous la barre de PV (reste d'activation des tourelles).
+	_window_bar = AxBar.new()
+	_window_bar.fill_style = "yellow"
+	_window_bar.position = Vector2(112.0, top + 78.0)
+	_window_bar.size = Vector2(BAR_W - 40.0, 34.0)
+	add_child(_window_bar)
 
-	var pause_btn: Button = UiKit.button("II", Vector2(110.0, 90.0), 48)
-	pause_btn.position = Vector2(width - 140.0, top - 6.0)
+	_wave_pill = AxPill.make("icons/skull", 300.0, 84.0, 42)
+	_wave_pill.position = Vector2(24.0, top + 128.0)
+	_wave_pill.set_text(Loc.t("wave_fmt", [0]), false)
+	add_child(_wave_pill)
+	_time_pill = AxPill.make("icons/clock", 230.0, 84.0, 42)
+	_time_pill.position = Vector2(340.0, top + 128.0)
+	_time_pill.set_text("0:00", false)
+	add_child(_time_pill)
+
+	_coin_pill = AxPill.make("icons/coin", 270.0, 92.0, 48)
+	_coin_pill.position = Vector2(width - 112.0 - 24.0 - 270.0 - 8.0, top + 2.0)
+	_coin_pill.set_color(UiArt.GOLD)
+	add_child(_coin_pill)
+	var pause_btn: AxRoundButton = AxRoundButton.make("blue", "pause", 104.0)
+	pause_btn.position = Vector2(width - 104.0 - 24.0, top - 2.0)
 	pause_btn.pressed.connect(func() -> void: pause_pressed.emit())
 	add_child(pause_btn)
 
-	# Bouton d'accès aux tourelles, en bas à droite (le joystick est en bas à gauche).
-	_upgrade_button = UiKit.button("TOURELLES", Vector2(320.0, 150.0), 40)
-	_upgrade_button.position = Vector2(width - 350.0, height - 290.0)
+	# Accès aux tourelles, en bas à droite (le joystick est en bas à gauche).
+	_upgrade_button = AxButton.make(Loc.t("turrets"), "yellow", Vector2(360.0, 138.0), 40, "axe")
+	_upgrade_button.position = Vector2(width - 384.0, height - 300.0)
 	_upgrade_button.pressed.connect(func() -> void: upgrades_pressed.emit())
 	add_child(_upgrade_button)
-	_badge = UiKit.label("0", 36, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	_badge.add_theme_stylebox_override("normal", UiKit.button_box(Color(0.85, 0.2, 0.2)))
-	_badge.position = _upgrade_button.position + Vector2(260.0, -24.0)
-	_badge.size = Vector2(64.0, 60.0)
+	_badge_bg = UiArt.image("misc/badge_red", Vector2(76, 80))
+	_badge_bg.position = _upgrade_button.position + Vector2(318.0, -34.0)
+	_badge_bg.size = Vector2(76, 80)
+	_badge_bg.visible = false
+	add_child(_badge_bg)
+	_badge = UiArt.label("0", 38, UiArt.WHITE, Color("#7E1410"))
+	_badge.position = _badge_bg.position
+	_badge.size = _badge_bg.size
+	_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_badge.visible = false
 	add_child(_badge)
 
-	_banner = UiKit.label("", 120, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
-	_banner.position = Vector2(0.0, 340.0)
-	_banner.size = Vector2(width, 160.0)
+	# Ruban d'annonce (vague, boss).
+	_banner = Control.new()
+	_banner.position = Vector2((width - 880.0) * 0.5, 330.0)
+	_banner.size = Vector2(880.0, 292.0)
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner.modulate.a = 0.0
 	add_child(_banner)
+	_banner_art = UiArt.image("brand/banner_blue")
+	_banner_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_banner_art.stretch_mode = TextureRect.STRETCH_SCALE
+	_banner.add_child(_banner_art)
+	_banner_label = UiArt.label("", 96, UiArt.WHITE, Color("#0F3C8A"))
+	_banner_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_banner_label.offset_left = 120.0
+	_banner_label.offset_right = -120.0
+	_banner_label.offset_top = 8.0
+	_banner_label.offset_bottom = -52.0
+	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_banner.add_child(_banner_label)
 
-	_debug = UiKit.label("", 30, Color(0.8, 1.0, 0.8))
-	_debug.position = Vector2(30.0, top + BAR_H + 200.0)
+	_debug = UiArt.label("", 28, Color(0.8, 1.0, 0.8), Color(0, 0, 0, 0.9), 5)
+	_debug.position = Vector2(30.0, top + 240.0)
+	_debug.visible = UserSettings.show_fps()
 	add_child(_debug)
 
 
 func _on_player_damaged(amount: float, hp_left: float) -> void:
-	_hp_fill.size.x = BAR_W * clampf(hp_left / _player.health.max_hp, 0.0, 1.0)
+	_hp_bar.set_ratio(clampf(hp_left / _player.health.max_hp, 0.0, 1.0))
 	if amount > 0.0:
 		_flash_k = 1.0
-		_pop(_hp_fill.get_parent() as Control, 1.06)
+		_pop(_heart, 1.3)
 
 
 ## Vignette : flash rouge à chaque coup subi + pulsation douce quand les PV sont bas.
@@ -168,6 +203,10 @@ func _update_vignette(delta: float) -> void:
 	var low: float = 0.0
 	if _ctx.player_alive and frac < 0.3:
 		low = 0.22 * (1.0 - frac / 0.3) * (0.55 + 0.45 * sin(Time.get_ticks_msec() * 0.0055))
+		# Le cœur bat quand les PV sont bas.
+		_heart.scale = Vector2.ONE * (1.0 + 0.08 * maxf(sin(Time.get_ticks_msec() * 0.011), 0.0))
+	elif _heart.scale != Vector2.ONE and not _heart.has_meta(&"popping"):
+		_heart.scale = Vector2.ONE
 	_vignette_mat.set_shader_parameter(&"intensity", maxf(_flash_k * 0.85, low))
 
 
@@ -184,36 +223,35 @@ func _pop(node: Control, amount: float) -> void:
 
 
 func _on_coins_changed(total: int) -> void:
-	_coins_label.text = str(total)
+	_coin_pill.count_to(total)
 
 
-## Une pièce cosmétique arrive au joueur : le compteur rebondit (plus fort sur les séries).
+## Une pièce cosmétique arrive au joueur : le compteur rebondit.
 func _on_coin_collected(streak: int) -> void:
-	_pop(_coins_label, 1.0 + 0.10 * minf(float(streak), 4.0) * 0.5 + 0.08)
+	_pop(_coin_pill, 1.06 + 0.03 * minf(float(streak), 4.0))
 
 
 func _on_wave_started(wave: int) -> void:
-	_wave_label.text = "VAGUE %d" % wave
-	_pop(_wave_label, 1.35)
-	_show_banner("VAGUE %d" % wave, UiKit.ACCENT, 120, 0.5)
+	_wave_pill.set_text(Loc.t("wave_fmt", [wave]))
+	_show_banner(Loc.t("wave_fmt", [wave]), "blue", 96, 0.5)
 
 
 func _on_boss_warning(_wave: int, seconds: float, _position: Vector2) -> void:
-	_show_banner("BOSS !", Color(1.0, 0.25, 0.2), 150, seconds)
+	_show_banner(Loc.t("boss_alert"), "red", 120, seconds)
 
 
 func _on_boss_phase(_id: int, phase: int) -> void:
-	_show_banner("PHASE %d" % phase, Color(1.0, 0.35, 0.2), 110, 0.6)
+	_show_banner(Loc.t("phase_fmt", [phase]), "red", 96, 0.6)
 
 
 func _on_boss_defeated(_id: int, reward: int) -> void:
-	_show_banner("BOSS VAINCU  +%d" % reward, Color(1.0, 0.82, 0.25), 80, 1.6)
+	_show_banner("%s  +%d" % [Loc.t("boss_down"), reward], "yellow", 62, 1.6)
 
 
-func _show_banner(text: String, color: Color, font_size: int, hold: float) -> void:
-	_banner.text = text
-	_banner.add_theme_color_override("font_color", color)
-	_banner.add_theme_font_size_override("font_size", font_size)
+func _show_banner(text: String, kind: String, font_size: int, hold: float) -> void:
+	_banner_art.texture = UiArt.tex("brand/banner_" + kind)
+	UiArt.style_label(_banner_label, font_size, UiArt.WHITE, BANNER_INK[kind] as Color)
+	_banner_label.text = text
 	if _banner_tween != null and _banner_tween.is_valid():
 		_banner_tween.kill()
 	_banner.modulate.a = 1.0
@@ -231,6 +269,12 @@ func _show_banner(text: String, color: Color, font_size: int, hold: float) -> vo
 	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.6)
 
 
+## Rend l'overlay de mesures visible/invisible (Réglages).
+func set_debug_visible(on: bool) -> void:
+	_debug.visible = on
+
+
 static func _format_time(seconds: float) -> String:
 	var total: int = int(seconds)
+	@warning_ignore("integer_division")
 	return "%d:%02d" % [total / 60, total % 60]

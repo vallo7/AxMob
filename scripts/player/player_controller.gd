@@ -19,6 +19,8 @@ const HIT_SQUASH: float = 0.28
 const IDLE_BREATH: float = 0.018
 
 var health: HealthComponent
+## Vitesse maximale de CETTE partie (vitesse de base x bonus permanent).
+var _max_speed: float = 5.0
 
 var _ctx: RunContext
 var _cfg: GameConfig
@@ -39,7 +41,8 @@ var _ring_mat: StandardMaterial3D
 func setup(ctx: RunContext) -> void:
 	_ctx = ctx
 	_cfg = ctx.config
-	health = HealthComponent.new(_cfg.player_hp, _cfg.invuln_time)
+	_max_speed = _cfg.player_speed * _ctx.bonuses.speed_mult
+	health = HealthComponent.new(_cfg.player_hp + _ctx.bonuses.hp_add, _cfg.invuln_time)
 	_ctx.player_alive = true
 	_build_visuals()
 	EventBus.enemy_attack_landed.connect(_on_attack_landed)
@@ -53,7 +56,7 @@ func step(dt: float, input_vec: Vector2) -> void:
 		_apply_visuals(dt)
 		return
 	health.tick(dt)
-	var speed: float = _cfg.player_speed
+	var speed: float = _max_speed
 	var desired: Vector2 = input_vec.limit_length(1.0) * speed
 	_vel = Steering.approach_asymmetric(
 		_vel, desired, speed / _cfg.accel_time, speed / _cfg.decel_time, dt
@@ -108,7 +111,7 @@ func _apply_visuals(dt: float) -> void:
 	if _ctx.player_alive:
 		_hit_left = maxf(_hit_left - dt, 0.0)
 		if _hit_left <= 0.0:
-			var speed_ratio: float = clampf(_vel.length() / _cfg.player_speed, 0.0, 1.0)
+			var speed_ratio: float = clampf(_vel.length() / _max_speed, 0.0, 1.0)
 			if speed_ratio > 0.08:
 				_rig.play(&"run", maxf(speed_ratio * RUN_SPEED_SCALE, 0.45))
 			else:
@@ -132,7 +135,7 @@ func _apply_visuals(dt: float) -> void:
 ## Animation procédurale du héros par-dessus les clips : rebond et balancement synchronisés sur les
 ## pas, penchement vers l'avant, respiration à l'arrêt, écrasement à l'impact reçu.
 func _apply_juice(dt: float) -> void:
-	var speed_ratio: float = clampf(_vel.length() / _cfg.player_speed, 0.0, 1.0)
+	var speed_ratio: float = clampf(_vel.length() / _max_speed, 0.0, 1.0)
 	var prev: float = _run_phase
 	_run_phase = fposmod(_run_phase + dt * TAU * STEP_HZ * 0.5 * speed_ratio, TAU * 2.0)
 	if _ctx.player_alive and speed_ratio > 0.15 and floori(prev / PI) != floori(_run_phase / PI):

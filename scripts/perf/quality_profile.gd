@@ -13,8 +13,17 @@ var tier: Tier = Tier.MEDIUM
 ## résolution réelle de l'écran : un écran QHD+ n'a pas besoin d'être rendu à pleine résolution
 ## (l'interface reste nette, elle est dessinée à la résolution native par-dessus).
 var render_megapixels: float = 1.6
-## Anticrénelage matériel du rendu 3D (Viewport.MSAA_*).
+## Anticrénelage matériel du rendu 3D (Viewport.MSAA_*). Données de profil : QualityManager ne
+## l'applique QUE sur ordinateur (voir `effective_msaa`). Sur Android il reste DÉSACTIVÉ : le MSAA
+## du moteur Compatibility y est la piste n°1 du plantage en graphisme élevé (phase 6).
 var msaa: Viewport.MSAA = Viewport.MSAA_DISABLED
+## Contours « cartoon » (seconde passe de rendu des personnages) et épaisseur en pixels d'écran.
+var outlines: bool = false
+var outline_px: float = 0.0
+## Budget de mémoire vidéo (Mo) au-delà duquel le gestionnaire abaisse le profil.
+var video_budget_mb: float = 300.0
+## Détails de décor animés (écume, scintillements de l'eau).
+var water_sparkles: bool = false
 ## Multiplicateur du nombre de particules émises (en plus de FeelConfig.fx_scale).
 var fx_density: float = 1.0
 ## Capacité utile des lots de particules (<= capacité allouée).
@@ -52,6 +61,8 @@ static func for_tier(t: Tier) -> QualityProfile:
 			p.far_anim_divisor = 3
 			p.ocean_detail = 0.0
 			p.max_voices = 12
+			p.outlines = false
+			p.video_budget_mb = 220.0
 		Tier.MEDIUM:
 			p.render_megapixels = 1.45
 			p.msaa = Viewport.MSAA_DISABLED
@@ -65,9 +76,16 @@ static func for_tier(t: Tier) -> QualityProfile:
 			p.far_anim_divisor = 2
 			p.ocean_detail = 0.6
 			p.max_voices = 16
+			p.outlines = true
+			p.outline_px = 2.2
+			p.video_budget_mb = 320.0
 		Tier.HIGH:
 			p.render_megapixels = 2.1
 			p.msaa = Viewport.MSAA_2X
+			p.outlines = true
+			p.outline_px = 2.8
+			p.water_sparkles = true
+			p.video_budget_mb = 440.0
 	return p
 
 
@@ -76,6 +94,11 @@ static func clamp_tier(value: int) -> Tier:
 
 
 ## Facteur d'échelle du rendu 3D pour un écran de `width` x `height` pixels (1.0 = natif).
+## Anticrénelage réellement appliqué : jamais sur mobile (cf. `msaa`).
+func effective_msaa(is_mobile: bool) -> Viewport.MSAA:
+	return Viewport.MSAA_DISABLED if is_mobile else msaa
+
+
 func render_scale_for(width: float, height: float) -> float:
 	var pixels: float = maxf(width * height, 1.0)
 	return clampf(sqrt(render_megapixels * 1.0e6 / pixels), 0.5, 1.0)

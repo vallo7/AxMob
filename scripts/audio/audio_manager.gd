@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 extends Node
 ## Moteur audio du jeu (autoload « AudioManager »).
 ##
@@ -86,7 +87,9 @@ var _sfx_volume: float = 1.0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_rng.seed = 424242
-	sound_mode = UserSettings.sound_mode()
+	_music_volume = float(UserSettings.music_volume_step()) / 10.0
+	_sfx_volume = float(UserSettings.sfx_volume_step()) / 10.0
+	_sync_sound_mode()
 	_build_buses()
 	_build_voices()
 	_build_music_players()
@@ -500,9 +503,13 @@ func cycle_sound_mode() -> void:
 	set_sound_mode((sound_mode + 1) % 3)
 
 
+## Vue « tout-en-un » (phase 5) : 0 = musique + effets, 1 = effets seuls, 2 = silence. Écrit les
+## deux interrupteurs indépendants (Réglages) ; `sound_mode` en est le résumé.
 func set_sound_mode(mode: int) -> void:
-	sound_mode = clampi(mode, 0, 2)
-	UserSettings.set_sound_mode(sound_mode)
+	mode = clampi(mode, 0, 2)
+	UserSettings.set_music_enabled(mode == 0)
+	UserSettings.set_sfx_enabled(mode < 2)
+	_sync_sound_mode()
 	_apply_mix()
 
 
@@ -510,16 +517,49 @@ func sound_label() -> String:
 	return SOUND_LABELS[sound_mode]
 
 
+func set_music_enabled(on: bool) -> void:
+	UserSettings.set_music_enabled(on)
+	_sync_sound_mode()
+	_apply_mix()
+
+
+func set_sfx_enabled(on: bool) -> void:
+	UserSettings.set_sfx_enabled(on)
+	_sync_sound_mode()
+	_apply_mix()
+
+
+## Volumes en crans 0..10 (sauvegardés).
+func set_music_volume_step(step: int) -> void:
+	UserSettings.set_music_volume_step(step)
+	_music_volume = float(UserSettings.music_volume_step()) / 10.0
+	_apply_music_volume()
+
+
+func set_sfx_volume_step(step: int) -> void:
+	UserSettings.set_sfx_volume_step(step)
+	_sfx_volume = float(UserSettings.sfx_volume_step()) / 10.0
+	_apply_mix()
+
+
+func _sync_sound_mode() -> void:
+	var music_on: bool = UserSettings.music_enabled()
+	var sfx_on: bool = UserSettings.sfx_enabled()
+	sound_mode = 0 if (music_on and sfx_on) else (2 if (not music_on and not sfx_on) else 1)
+
+
 func _apply_mix() -> void:
-	var sfx_on: bool = sound_mode < 2
+	var sfx_on: bool = UserSettings.sfx_enabled()
 	for bus: StringName in [BUS_SFX, BUS_UI, BUS_AMB]:
-		AudioServer.set_bus_mute(AudioServer.get_bus_index(bus), not sfx_on)
+		var idx: int = AudioServer.get_bus_index(bus)
+		AudioServer.set_bus_mute(idx, not sfx_on)
+		AudioServer.set_bus_volume_db(idx, linear_to_db(maxf(_sfx_volume, 0.0001)))
 	_apply_music_volume()
 
 
 func _apply_music_volume() -> void:
 	var idx: int = AudioServer.get_bus_index(BUS_MUSIC)
-	AudioServer.set_bus_mute(idx, sound_mode != 0)
+	AudioServer.set_bus_mute(idx, not UserSettings.music_enabled())
 	AudioServer.set_bus_volume_db(
 		idx, MUSIC_BASE_DB + _duck_db + linear_to_db(maxf(_music_volume, 0.0001))
 	)

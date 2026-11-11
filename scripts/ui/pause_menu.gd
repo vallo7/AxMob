@@ -1,91 +1,83 @@
 class_name PauseMenu
 extends Control
-## Menu pause : REPRENDRE, RECOMMENCER, MENU, plus deux réglages rapides : vibrations et
-## comportement du jeu pendant les améliorations. Reste actif en pause.
+## Menu pause (cahier §10.6) : REPRENDRE, RECOMMENCER, RÉGLAGES, MENU PRINCIPAL. Les réglages
+## (vibrations, qualité, son, comportement pendant les améliorations...) sont dans l'écran
+## RÉGLAGES, identique à celui du menu principal. Reste actif en pause.
 
 signal resume_pressed
 signal restart_pressed
 signal menu_pressed
 signal upgrade_mode_pressed
 
-const UPGRADE_MODE_NAMES: Array[String] = ["Arrêt total", "Ralenti", "Aucune pause"]
-
-var _haptics_button: Button
-var _haptics_test_button: Button
-var _mode_button: Button
-var _quality_button: Button
-var _sound_button: Button
+var _built: bool = false
+var _title: Label
+var _buttons: Dictionary = {}
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visible = false
 	var dim: ColorRect = ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.6)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.04, 0.07, 0.2, 0.66)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
+	var panel: Control = Control.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.custom_minimum_size = Vector2(800, 880)
+	panel.size = Vector2(800, 880)
+	panel.offset_left = -400.0
+	panel.offset_right = 400.0
+	panel.offset_top = -400.0
+	panel.offset_bottom = 480.0
+	add_child(panel)
+	panel.add_child(UiArt.nine("panels/panel_light", 78, 78, 78, 84))
+	var rib: TextureRect = UiArt.image("brand/banner_blue")
+	rib.position = Vector2(80.0, -118.0)
+	rib.size = Vector2(640.0, 218.0)
+	rib.stretch_mode = TextureRect.STRETCH_SCALE
+	panel.add_child(rib)
+	_title = UiArt.label(Loc.t("pause_title"), 64, UiArt.WHITE, Color("#0F3C8A"))
+	_title.position = Vector2(140.0, -58.0)
+	_title.size = Vector2(520.0, 120.0)
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	panel.add_child(_title)
 	var box: VBoxContainer = VBoxContainer.new()
-	box.add_theme_constant_override("separation", 18)
-	box.position = Vector2(190.0, 280.0)
-	box.custom_minimum_size = Vector2(700.0, 0.0)
-	add_child(box)
-	box.add_child(UiKit.label("PAUSE", 96, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
-	var resume: Button = UiKit.button("REPRENDRE", Vector2(700.0, 130.0), 56)
-	resume.pressed.connect(func() -> void: resume_pressed.emit())
-	box.add_child(resume)
-	var restart: Button = UiKit.button("RECOMMENCER", Vector2(700.0, 130.0), 56)
-	restart.pressed.connect(func() -> void: restart_pressed.emit())
-	box.add_child(restart)
-	var menu: Button = UiKit.button("MENU", Vector2(700.0, 130.0), 56)
-	menu.pressed.connect(func() -> void: menu_pressed.emit())
-	box.add_child(menu)
-	_haptics_button = UiKit.button("", Vector2(700.0, 100.0), 38)
-	_haptics_button.pressed.connect(_on_haptics_pressed)
-	box.add_child(_haptics_button)
-	_haptics_test_button = UiKit.button("TESTER LA VIBRATION", Vector2(700.0, 100.0), 38)
-	_haptics_test_button.pressed.connect(_on_haptics_test_pressed)
-	box.add_child(_haptics_test_button)
-	_mode_button = UiKit.button("", Vector2(700.0, 100.0), 38)
-	_mode_button.pressed.connect(func() -> void: upgrade_mode_pressed.emit())
-	box.add_child(_mode_button)
-	_quality_button = UiKit.button("", Vector2(700.0, 100.0), 38)
-	_quality_button.pressed.connect(_on_quality_pressed)
-	box.add_child(_quality_button)
-	_sound_button = UiKit.button("", Vector2(700.0, 100.0), 38)
-	_sound_button.pressed.connect(_on_sound_pressed)
-	box.add_child(_sound_button)
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 80.0
+	box.offset_right = -80.0
+	box.offset_top = 130.0
+	box.offset_bottom = -90.0
+	box.add_theme_constant_override(&"separation", 24)
+	panel.add_child(box)
+	_add(box, "resume", "green", "play", func() -> void: resume_pressed.emit(), 150.0)
+	_add(box, "restart", "blue", "replay", func() -> void: restart_pressed.emit())
+	_add(box, "settings", "blue", "gear", _open_settings)
+	_add(box, "main_menu", "red", "home", func() -> void: menu_pressed.emit())
+	_built = true
 	visibility_changed.connect(refresh_labels)
 
 
+func _add(
+	box: VBoxContainer, key: String, style: String, icon: String, action: Callable, h: float = 128.0
+) -> void:
+	var b: AxButton = AxButton.make(Loc.t(key), style, Vector2(0, h), 50 if h > 140.0 else 44, icon)
+	b.pressed.connect(action)
+	box.add_child(b)
+	_buttons[key] = b
+
+
+func _open_settings() -> void:
+	var s: SettingsScreen = SettingsScreen.new()
+	s.upgrade_pause_changed.connect(func(_m: int) -> void: upgrade_mode_pressed.emit())
+	add_child(s)
+
+
+## Retraduit les textes (langue changée dans les réglages).
 func refresh_labels() -> void:
-	_haptics_button.text = "VIBRATIONS : %s" % UserSettings.HAPTICS_NAMES[Haptics.level()]
-	var mode: int = UserSettings.upgrade_pause(0)
-	_mode_button.text = "AMÉLIORATIONS : %s" % UPGRADE_MODE_NAMES[mode]
-	_quality_button.text = "QUALITÉ : %s" % QualityManager.mode_label()
-	_sound_button.text = "SON : %s" % AudioManager.sound_label()
-
-
-func _on_haptics_pressed() -> void:
-	Haptics.cycle_level()
-	# Petit échantillon : le joueur sent tout de suite le niveau choisi.
-	Haptics.play(&"hurt_light", 0.7)
-	refresh_labels()
-
-
-## Vibration forte de 300 ms, indépendante des réglages : si le téléphone ne vibre pas ici,
-## le problème est hors du jeu (réglages du téléphone) ou dans l'APK (permission).
-func _on_haptics_test_pressed() -> void:
-	UIManager.toast(Haptics.test_vibration())
-
-
-## AUTO -> BAS -> MOYEN -> ÉLEVÉ : sauvegardé ; le profil s'applique tout de suite.
-func _on_quality_pressed() -> void:
-	QualityManager.cycle_mode()
-	refresh_labels()
-
-
-## Musique + effets -> effets seuls -> silence.
-func _on_sound_pressed() -> void:
-	AudioManager.cycle_sound_mode()
-	refresh_labels()
+	if not _built:
+		return
+	_title.text = Loc.t("pause_title")
+	for key: String in _buttons.keys():
+		(_buttons[key] as AxButton).text = Loc.t(key)

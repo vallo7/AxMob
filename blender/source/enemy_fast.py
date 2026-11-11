@@ -43,6 +43,8 @@ def build():
     m.add(ax.tube([(0, 0.42, 0.46), (0, 0.66, 0.56)], [0.05, 0.012], 5, 0), "pink_dark", "body", crease=0)
     for sx in (-1, 1):
         m.add(ax.ellipsoid((0.075, 0.075, 0.075), 8, 5, M((sx * 0.13, 0.43, 0.5))), "black", "body", crease=0)
+        # Reflet cartoon dans la pupille (le regard « vit »)
+        m.add(ax.ellipsoid((0.034, 0.017, 0.034), 6, 4, M((sx * 0.13 + 0.024, 0.486, 0.530))), "white", "body", crease=0)
         m.add(ax.ellipsoid((0.026, 0.026, 0.026), 5, 3, M((sx * 0.15, 0.49, 0.54))), "white", "body", crease=0)
         m.add(ax.box((0.13, 0.035, 0.03), 0.0, 1, M((sx * 0.13, 0.46, 0.6), (0, -sx * 24, 0))),
               "ink", "body", crease=0)

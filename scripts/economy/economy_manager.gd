@@ -27,7 +27,7 @@ func spend(amount: int) -> bool:
 
 
 func _on_enemy_died(_enemy_id: int, reward: int, _position: Vector3) -> void:
-	_ctx.coins += reward
+	_ctx.coins += int(round(float(reward) * _ctx.bonuses.coin_mult))
 	_ctx.kills += 1
 	EventBus.coins_changed.emit(_ctx.coins)
 

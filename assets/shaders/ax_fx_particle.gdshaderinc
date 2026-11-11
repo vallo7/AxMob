@@ -63,31 +63,39 @@ void fragment() {
 	vec2 uv = v_uv;
 	float d = length(uv);
 	float a = 0.0;
+	vec3 col = v_color.rgb;
 	int shape = int(v_shape + 0.5);
+	// Contour encre (cartoon) : bord sombre teinté sur les formes pleines.
+	vec3 ink = v_color.rgb * 0.58 + vec3(0.07, 0.04, 0.12);
 	if (shape == 0) {
-		// Point lumineux doux.
-		a = pow(clamp(1.0 - d, 0.0, 1.0), 1.6);
+		// Point lumineux : disque net, cœur blanc.
+		a = smoothstep(1.0, 0.86, d);
+		col = mix(v_color.rgb, vec3(1.0), smoothstep(0.62, 0.30, d));
 	} else if (shape == 1) {
-		// Éclat en étoile à quatre branches.
-		float arms = max(0.0, 1.0 - abs(uv.x) * 7.0) * max(0.0, 1.0 - abs(uv.y))
-				+ max(0.0, 1.0 - abs(uv.y) * 7.0) * max(0.0, 1.0 - abs(uv.x));
-		float core = pow(clamp(1.0 - d * 1.5, 0.0, 1.0), 2.0);
-		a = clamp(arms * 0.85 + core, 0.0, 1.0);
+		// Éclat en étoile à quatre branches pointues (astroïde), cœur blanc.
+		float q = pow(abs(uv.x), 0.55) + pow(abs(uv.y), 0.55);
+		a = smoothstep(1.0, 0.84, q);
+		col = mix(v_color.rgb, vec3(1.0), smoothstep(0.75, 0.25, q));
 	} else if (shape == 2) {
-		// Disque net (confetti rond).
-		a = smoothstep(1.0, 0.8, d);
+		// Confetti rond avec contour.
+		a = smoothstep(1.0, 0.9, d);
+		col = mix(ink, v_color.rgb, smoothstep(0.66, 0.78, 1.0 - d));
 	} else if (shape == 3) {
-		// Carré arrondi (confetti).
+		// Confetti carré arrondi avec contour.
 		vec2 q = abs(uv);
-		a = smoothstep(1.0, 0.82, max(q.x, q.y)) * smoothstep(1.35, 1.0, q.x + q.y);
+		float m = max(q.x, q.y);
+		a = smoothstep(1.0, 0.88, m) * smoothstep(1.4, 1.05, q.x + q.y);
+		col = mix(ink, v_color.rgb, smoothstep(0.70, 0.82, 1.0 - m));
 	} else {
-		// Nuage doux (fumée, poussière) : bord très progressif.
-		float s = clamp(1.0 - d, 0.0, 1.0);
-		a = s * s * (3.0 - 2.0 * s);
+		// Nuage cartoon : bord festonné, contour violet, reflet en haut à gauche.
+		float ang = atan(uv.y, uv.x);
+		float dd = d + 0.10 * sin(ang * 5.0 + v_k * 3.0) + 0.05 * sin(ang * 9.0 - 1.3);
+		a = smoothstep(1.0, 0.92, dd);
+		float inner = smoothstep(0.72, 0.84, 1.0 - dd);
+		float hl = smoothstep(0.55, 0.15, length(uv - vec2(-0.30, 0.30))) * 0.32;
+		col = mix(ink, mix(mix(v_color.rgb, vec3(1.0), 0.30), vec3(1.0), hl), inner);
 	}
 	float fade = 1.0 - smoothstep(0.55, 1.0, v_k);
-	// Cœur éclairci pour les points et étoiles (effet « lumineux » en fusion normale).
-	float core = (shape <= 1) ? pow(clamp(1.0 - d * 1.6, 0.0, 1.0), 2.0) : 0.0;
-	ALBEDO = mix(v_color.rgb, vec3(1.0), core * 0.8);
+	ALBEDO = col;
 	ALPHA = clamp(a * v_color.a * fade, 0.0, 1.0);
 }

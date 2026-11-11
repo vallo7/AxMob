@@ -75,10 +75,11 @@ def paint_sand(path: str) -> None:
         t = np.clip((x - a) / (b - a), 0, 1)
         return t * t * (3 - 2 * t)
 
-    c_sand = np.array([0.925, 0.77, 0.48])
-    c_light = np.array([0.965, 0.85, 0.6])
-    c_dark = np.array([0.851, 0.675, 0.388])
-    c_wet = np.array([0.788, 0.596, 0.353])
+    # Phase 6 (cartoon) : sable plus chaud et saturé, aplats nets, traits de « coup de pinceau ».
+    c_sand = np.array([0.955, 0.775, 0.40])
+    c_light = np.array([0.99, 0.88, 0.58])
+    c_dark = np.array([0.88, 0.67, 0.33])
+    c_wet = np.array([0.84, 0.625, 0.345])
     c_foam = np.array([1.0, 0.99, 0.94])
 
     img = np.broadcast_to(c_sand, (n, n, 3)).copy()
@@ -86,9 +87,9 @@ def paint_sand(path: str) -> None:
     img = lerp(img, np.broadcast_to(c_dark, img.shape), 0.22 * sm(ARENA_R - 1.4, ARENA_R + 0.2, R) * (1 - sm(ARENA_R + 0.2, ARENA_R + 1.4, R)))
     wet = sm(-3.6, -1.2, D)
     img = lerp(img, np.broadcast_to(c_wet, img.shape), wet * 0.9)
-    # petites vaguelettes d'écume sur le sable mouillé (festons)
+    # petites vaguelettes d'écume sur le sable mouillé (festons) : traits plus francs (cartoon)
     scallop = D + 0.22 * np.sin(TH * 46 + 3 * np.sin(TH * 7))
-    for off, w, a in ((-2.4, 0.07, 0.3), (-1.9, 0.09, 0.4), (-1.4, 0.14, 0.7)):
+    for off, w, a in ((-2.5, 0.10, 0.55), (-1.9, 0.12, 0.7), (-1.3, 0.2, 0.95)):
         band = np.exp(-(((scallop - off) / w) ** 2))
         img = lerp(img, np.broadcast_to(c_foam, img.shape), band * a)
     # ondulations (rides de sable) : très discrètes dans l'arène, plus marquées dehors
@@ -101,6 +102,33 @@ def paint_sand(path: str) -> None:
     img *= (1.0 + (blobs - 0.5) * 0.03)[..., None]
     # phase 5 : plus de grain ni de cailloux (texture lisse) ; léger flou final contre les marches des blobs
     img = box_blur(img, 2, 3)
+    # Phase 6 : touches cartoon dessinées à la main (après le flou, donc nettes).
+    in_arena = 1 - sm(ARENA_R + 1.0, ARENA_R + 2.4, R)
+    # 1) traits de vent : arcs clairs concentriques par plaques
+    patch = np.kron(rng.random((n // 96 + 2, n // 96 + 2)), np.ones((96, 96)))[:n, :n]
+    patch = box_blur(patch[..., None], 24, 3)[..., 0]
+    stroke = sm(0.80, 0.93, np.sin(R * 1.2 + 1.6 * np.sin(TH * 4 + R * 0.15)))
+    stroke *= sm(0.52, 0.62, patch) * in_arena
+    img = lerp(img, np.broadcast_to(c_light, img.shape), stroke * 0.5)
+    # 2) pastilles de sable plus foncées (petits cailloux/creux) et éclats clairs
+    px = 2 * TEX_HALF / n
+    for _ in range(150):
+        r0 = ARENA_R * math.sqrt(rng.random()) * 1.02
+        a0 = rng.random() * 2 * math.pi
+        cx, cy = r0 * math.sin(a0), r0 * math.cos(a0)
+        rad = 0.22 + 0.30 * rng.random()
+        mask = np.clip((rad - np.hypot(X - cx, Y - cy)) / (px * 1.2), 0, 1)
+        img = lerp(img, np.broadcast_to(c_dark * 0.96, img.shape), mask * 0.55)
+        mask2 = np.clip((rad * 0.45 - np.hypot(X - cx + rad * 0.3, Y - cy - rad * 0.3)) / (px * 1.2), 0, 1)
+        img = lerp(img, np.broadcast_to(c_light, img.shape), mask2 * 0.55)
+    for _ in range(22):
+        r0 = ARENA_R * math.sqrt(rng.random())
+        a0 = rng.random() * 2 * math.pi
+        cx, cy = r0 * math.sin(a0), r0 * math.cos(a0)
+        arm = 0.26 + 0.14 * rng.random()
+        horiz = np.clip((0.09 - np.abs(Y - cy)) / (px * 1.2), 0, 1) * np.clip((arm - np.abs(X - cx)) / (px * 1.2), 0, 1)
+        vert = np.clip((0.09 - np.abs(X - cx)) / (px * 1.2), 0, 1) * np.clip((arm - np.abs(Y - cy)) / (px * 1.2), 0, 1)
+        img = lerp(img, np.broadcast_to(np.array([1.0, 0.98, 0.86]), img.shape), np.maximum(horiz, vert) * 0.7)
     # hors de l'île : couleur d'eau (jamais visible : la mer est dessinée par-dessus)
     img = lerp(img, np.broadcast_to(np.array([0.3, 0.75, 0.85]), img.shape), sm(0.5, 1.5, D))
     ax.write_png(path, (np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8))

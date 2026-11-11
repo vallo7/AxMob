@@ -39,8 +39,8 @@ func _input(event: InputEvent) -> void:
 		if drag.index == _touch_index:
 			_thumb = drag.position
 			var offset: Vector2 = _thumb - _origin
-			if offset.length() > _cfg.joystick_radius_px:
-				_origin = _thumb - offset.normalized() * _cfg.joystick_radius_px
+			if offset.length() > _radius():
+				_origin = _thumb - offset.normalized() * _radius()
 			_refresh()
 
 
@@ -63,22 +63,38 @@ func _in_zone(p: Vector2) -> bool:
 
 
 func _refresh() -> void:
-	vector = JoystickMath.from_offset(
-		_thumb - _origin, _cfg.joystick_radius_px, _cfg.joystick_deadzone
-	)
+	vector = JoystickMath.from_offset(_thumb - _origin, _radius(), _cfg.joystick_deadzone)
 	queue_redraw()
 
 
 func _draw() -> void:
 	if _cfg == null:
 		return
-	var r: float = _cfg.joystick_radius_px
+	var r: float = _radius()
+	var base: Texture2D = UiArt.tex("misc/joy_base")
+	var knob_tex: Texture2D = UiArt.tex("misc/joy_knob")
 	if _touch_index == -1:
+		# Au repos : repère discret (la zone où poser le pouce).
 		var idle: Vector2 = Vector2(r + 60.0, get_viewport_rect().size.y - r - 160.0)
-		draw_arc(idle, r, 0.0, TAU, 48, Color(1, 1, 1, 0.16), 6.0)
-		draw_circle(idle, r * 0.38, Color(1, 1, 1, 0.1))
+		draw_texture_rect(
+			base, Rect2(idle - Vector2.ONE * r, Vector2.ONE * r * 2.0), false, Color(1, 1, 1, 0.45)
+		)
+		draw_texture_rect(
+			knob_tex,
+			Rect2(idle - Vector2(0.4, 0.42) * r, Vector2(0.8, 0.84) * r),
+			false,
+			Color(1, 1, 1, 0.55)
+		)
 		return
-	draw_circle(_origin, r, Color(1, 1, 1, 0.1))
-	draw_arc(_origin, r, 0.0, TAU, 48, Color(1, 1, 1, 0.35), 6.0)
+	draw_texture_rect(
+		base, Rect2(_origin - Vector2.ONE * r, Vector2.ONE * r * 2.0), false, Color(1, 1, 1, 0.85)
+	)
 	var knob: Vector2 = _origin + (_thumb - _origin).limit_length(r)
-	draw_circle(knob, r * 0.4, Color(0.93, 0.47, 0.12, 0.75))
+	draw_texture_rect(
+		knob_tex, Rect2(knob - Vector2(0.45, 0.47) * r, Vector2(0.9, 0.94) * r), false
+	)
+
+
+## Rayon effectif : plus la sensibilité est haute, plus la course du pouce est courte.
+func _radius() -> float:
+	return _cfg.joystick_radius_px / UserSettings.joystick_sensitivity()

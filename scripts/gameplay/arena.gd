@@ -10,6 +10,7 @@ const MODEL_RADIUS: float = 13.0
 const WATER_LEVEL: float = -0.28
 const SAND_TEXTURE: Texture2D = preload("res://assets/textures/sand.png")
 const OCEAN_SHADER: Shader = preload("res://assets/shaders/ax_ocean.gdshader")
+const WATER_NOISE: Texture2D = preload("res://assets/textures/water_noise.png")
 
 ## Objets de plage. `angle` : degrés depuis le haut de l'écran (-Z) vers la droite ; `r` : distance
 ## au centre en mètres du modèle d'arène (rayon de jeu 13) ; tous restent hors de la bouée.
@@ -52,6 +53,11 @@ func setup(cfg: GameConfig) -> void:
 		var sand: ShaderMaterial = ModelRig.PALETTE.duplicate() as ShaderMaterial
 		sand.set_shader_parameter(&"albedo_tex", SAND_TEXTURE)
 		sand.set_shader_parameter(&"rim_strength", 0.06)
+		sand.set_shader_parameter(&"spec_strength", 0.0)
+		sand.set_shader_parameter(&"saturation", 1.0)
+		sand.set_shader_parameter(&"brightness", 0.86)
+		# pas de contour sur le sol (la coque inversée ne vaut que pour les personnages)
+		sand.next_pass = null
 		var ground_mesh: MeshInstance3D = (
 			ground.root.find_child("Ground", true, false) as MeshInstance3D
 		)
@@ -60,6 +66,7 @@ func setup(cfg: GameConfig) -> void:
 
 	ocean_material = ShaderMaterial.new()
 	ocean_material.shader = OCEAN_SHADER
+	ocean_material.set_shader_parameter(&"noise_tex", WATER_NOISE)
 	ocean_material.set_shader_parameter(&"model_scale", k)
 	_apply_quality()
 	EventBus.quality_changed.connect(func(_t: int) -> void: _apply_quality())
@@ -86,3 +93,6 @@ func setup(cfg: GameConfig) -> void:
 ## Détail de la mer selon le profil de qualité (la mer couvre une grande part de l'écran).
 func _apply_quality() -> void:
 	ocean_material.set_shader_parameter(&"detail", QualityManager.profile.ocean_detail)
+	ocean_material.set_shader_parameter(
+		&"sparkle", 1.0 if QualityManager.profile.water_sparkles else 0.0
+	)

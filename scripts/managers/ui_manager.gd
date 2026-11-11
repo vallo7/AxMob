@@ -74,13 +74,27 @@ func _build_toast() -> void:
 	_toast_layer = CanvasLayer.new()
 	_toast_layer.layer = 120
 	add_child(_toast_layer)
-	_toast = UiKit.label("", 44, UiKit.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	_toast.add_theme_stylebox_override("normal", UiKit.panel_box())
+	_toast = Label.new()
+	UiArt.style_label(_toast, 38, UiArt.WHITE, UiArt.INK)
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var sb: StyleBoxTexture = StyleBoxTexture.new()
+	sb.texture = UiArt.tex("panels/plate_dark")
+	sb.texture_margin_left = 46.0
+	sb.texture_margin_right = 46.0
+	sb.texture_margin_top = 40.0
+	sb.texture_margin_bottom = 46.0
+	sb.content_margin_left = 40.0
+	sb.content_margin_right = 40.0
+	sb.content_margin_top = 14.0
+	sb.content_margin_bottom = 24.0
+	_toast.add_theme_stylebox_override("normal", sb)
 	_toast.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_toast.anchor_left = 0.1
 	_toast.anchor_right = 0.9
-	_toast.offset_top = -330.0
+	_toast.offset_top = -400.0
 	_toast.offset_bottom = -230.0
+	_toast.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_toast.offset_left = 0.0
 	_toast.offset_right = 0.0
 	_toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

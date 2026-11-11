@@ -668,42 +668,44 @@ func test_back_on_boot_needs_two_presses_to_quit() -> void:
 	t.call("check", UIManager.stack.size() == 0, "pile vide une fois les écrans fermés")
 
 
-func test_pause_menu_settings_buttons() -> void:
+func test_pause_menu_settings_screen() -> void:
 	UserSettings.path_override = "user://test_settings.cfg"
 	DirAccess.remove_absolute(UserSettings.path_override)
 	Haptics.set_level(2)
 	var g: Gameplay = await _make_gameplay()
 	var pm: PauseMenu = g._pause_menu
-	pm.refresh_labels()
-	t.call("check", pm._haptics_button.text == "VIBRATIONS : Normales", pm._haptics_button.text)
-	pm._haptics_button.pressed.emit()
+	pm._open_settings()
+	var screen: SettingsScreen = pm.get_child(pm.get_child_count() - 1) as SettingsScreen
+	t.call("check", screen != null, "RÉGLAGES s'ouvre depuis la pause")
+	var segs: Array[Node] = screen.content.find_children("*", "AxSegment", true, false)
+	# Ordre des sélecteurs : vibrations, graphismes, jeu pendant les améliorations, langue.
+	var hap: AxSegment = segs[0] as AxSegment
+	t.call("check", hap.selected == 2, "vibrations : niveau actuel affiché")
+	hap._buttons[3].pressed.emit()
 	t.call(
 		"check",
-		pm._haptics_button.text == "VIBRATIONS : Fortes" and UserSettings.haptics_level() == 3,
-		"bouton vibrations : niveau suivant et sauvegarde"
+		UserSettings.haptics_level() == 3 and Haptics.level() == 3,
+		"vibrations : niveau choisi et sauvegardé"
 	)
-	t.call("check", pm._mode_button.text == "AMÉLIORATIONS : Arrêt total", pm._mode_button.text)
-	pm._mode_button.pressed.emit()
+	var up: AxSegment = segs[2] as AxSegment
+	t.call("check", up.selected == 0, "arrêt total par défaut")
+	up._buttons[1].pressed.emit()
 	t.call(
 		"check",
-		(
-			g.ctx.config.upgrade_pause == GameConfig.UpgradePause.SLOW
-			and pm._mode_button.text == "AMÉLIORATIONS : Ralenti"
-		),
-		"mode d'amélioration suivant"
+		g.ctx.config.upgrade_pause == GameConfig.UpgradePause.SLOW,
+		"le mode d'amélioration choisi est appliqué à la partie"
 	)
-	pm._mode_button.pressed.emit()
-	pm._mode_button.pressed.emit()
+	up._buttons[0].pressed.emit()
 	t.call(
 		"check",
 		g.ctx.config.upgrade_pause == GameConfig.UpgradePause.FULL_STOP,
-		"la boucle revient à l'arrêt total"
+		"retour à l'arrêt total"
 	)
+	screen.queue_free()
 	Haptics.set_level(2)
 	Haptics.reset()
 	_free_gameplay(g)
 	DirAccess.remove_absolute(UserSettings.path_override)
-	UserSettings.path_override = ""
 
 
 # --- Arène agrandie ---
