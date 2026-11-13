@@ -53,13 +53,21 @@ static func compute(
 	var rot: Vector3 = Vector3.ZERO
 	match e.state:
 		Enemy.State.SPAWNING:
+			# Phase 7 : l'ennemi MONTE hors de l'eau ou du sable (le sol et la mer le masquent d'abord),
+			# avec un léger dépassement puis un petit écrasement à l'arrivée. Dans le sable il
+			# tremble d'abord (la butte se soulève), dans l'eau il ondule.
 			var u: float = clampf(e.state_time / maxf(spawn_time, 0.01), 0.0, 1.0)
-			var pop: float = ProjectileManager.ease_out_back(u, j.spawn_overshoot)
-			out.uniform = lerpf(0.2, 1.0, pop)
-			off.y += j.spawn_hop * sin(u * PI) * (1.0 - 0.35 * u)
-			rot.y = (1.0 - u) * (1.0 - u) * TAU * j.spawn_spin_turns
-			# Atterrissage : petit écrasement en fin d'apparition.
-			sy = 1.0 - 0.18 * smoothstep(0.7, 0.92, u) * (1.0 - smoothstep(0.92, 1.0, u))
+			var rise: float = ProjectileManager.ease_out_back(smoothstep(0.0, 0.85, u), 1.4)
+			var depth: float = maxf(e.data.height, 0.6) * 1.15
+			out.uniform = lerpf(0.82, 1.0, rise)
+			off.y += -depth * (1.0 - rise) + j.spawn_hop * 0.5 * sin(u * PI) * u
+			if not e.from_water:
+				rot.z = sin(e.state_time * 46.0) * 0.12 * (1.0 - u)
+				rot.x = cos(e.state_time * 39.0) * 0.08 * (1.0 - u)
+			else:
+				rot.z = sin(e.state_time * 14.0) * 0.1 * (1.0 - u)
+			rot.y = (1.0 - u) * (1.0 - u) * TAU * j.spawn_spin_turns * 0.5
+			sy = 1.0 - 0.16 * smoothstep(0.72, 0.92, u) * (1.0 - smoothstep(0.92, 1.0, u))
 		Enemy.State.CHASE, Enemy.State.CHARGING:
 			var hop: float = absf(sin(e.juice_phase))
 			var k: float = clampf(ratio, 0.0, 1.0)

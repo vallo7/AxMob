@@ -150,7 +150,7 @@ func _step_axe(a: Axe, dt: float) -> void:
 				_deactivate(a)
 				return
 	a.pos = p1
-	if p1.length() > _ctx.config.arena_radius + BOUNDS_MARGIN:
+	if p1.length() > _ctx.shape.edge(IslandShape.theta_of(p1)) + BOUNDS_MARGIN:
 		_deactivate(a)
 		return
 	_sync_visual(a, dt)

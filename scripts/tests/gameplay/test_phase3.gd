@@ -147,19 +147,33 @@ func test_turret_visual_tiers_appear_with_levels() -> void:
 	_free_gameplay(g)
 
 
-func test_upgrade_panel_buttons_and_badge() -> void:
+func test_turret_dock_quick_buy_and_upgrade_panel() -> void:
 	var g: Gameplay = await _make_gameplay()
 	var panel: TurretUpgradePanel = g._panel
+	var dock: TurretDock = g._hud.dock
+	t.call("check", dock.slot_count() == 4, "la barre du bas contient 4 boutons de tourelle")
 	g.ctx.coins = 0
 	g._hud._process(DT)
-	t.call("check", not g._hud._badge.visible, "pas de pastille sans pièces")
+	dock.refresh()
+	t.call("check", dock.slot(0)._state == "stone", "sans pièces : boutons non abordables")
 	g.ctx.coins = 30
-	g._hud._process(DT)
+	dock.refresh()
+	t.call("check", dock.slot(0)._state == "gold", "avec des pièces : bouton doré (abordable)")
+	# Achat rapide : un toucher sur le bouton améliore la tourelle immédiatement, sans pause.
+	var before: int = g.ctx.coins
+	dock.slot(0).tapped.emit()
 	t.call(
 		"check",
-		g._hud._badge.visible and g._hud._badge.text == "4",
-		"pastille : 4 améliorations abordables"
+		g.ctx.turret_levels[0] == 2 and g.ctx.coins == before - 14,
+		"toucher le bouton améliore et dépense (14 pièces)"
 	)
+	t.call("check", g.state == Gameplay.State.RUN, "achat rapide : le jeu continue")
+	g.ctx.coins = 1
+	var lvl: int = g.ctx.turret_levels[0]
+	dock.slot(0).tapped.emit()
+	t.call("check", g.ctx.turret_levels[0] == lvl, "pièces insuffisantes : rien")
+	g.ctx.turret_levels[0] = 1
+	g.ctx.coins = 30
 	g._toggle_upgrades()
 	t.call("check", g.state == Gameplay.State.UPGRADING and panel.is_open(), "le panneau s'ouvre")
 	var card: TurretCard = panel._cards[0]
@@ -354,8 +368,8 @@ func test_boss_wave_warning_then_spawn_then_clear() -> void:
 		var boss: BossData = DataRegistry.wave_table().boss
 		t.call(
 			"check",
-			p.length() <= g.ctx.config.arena_radius - boss.radius + 0.001,
-			"point d'apparition dans l'arène"
+			p.distance_to(g.ctx.shape.water_point(IslandShape.theta_of(p), boss.radius)) < 0.001,
+			"le boss sort de la mer (rivage, côté ennemis)"
 		)
 		t.call("check", g.ctx.boss_id == spawned[0], "ctx.boss_id renseigné")
 		var e: Enemy = g.ctx.enemies.slots[spawned[0]]
@@ -563,7 +577,10 @@ func test_boss_summons_in_phase_three_only() -> void:
 				"check",
 				(
 					other.data.id == boss.summon_enemy.id
-					and other.pos.length() <= g.ctx.config.arena_radius
+					and (
+						other.pos.length()
+						<= g.ctx.shape.enemy_limit(IslandShape.theta_of(other.pos)) + 0.001
+					)
 				),
 				"invoqués dans l'arène"
 			)
@@ -719,83 +736,64 @@ func _ndc(cam: Camera3D, world: Vector3, aspect: float) -> Vector2:
 	return Vector2(p.x / (-p.z) / f, p.y / (-p.z) / f * aspect)
 
 
-func test_big_arena_and_turrets_stay_inside_the_screen() -> void:
+func test_island_camera_follows_and_turrets_visible_from_the_centre() -> void:
 	var g: Gameplay = await _make_gameplay()
 	var cfg: GameConfig = g.ctx.config
 	t.call(
 		"check",
-		cfg.arena_radius > 9.0,
-		"arène plus grande que la phase 2 (%.1f > 9)" % cfg.arena_radius
+		cfg.arena_radius > 14.0,
+		"île entière jouable (%.1f m de rayon moyen)" % cfg.arena_radius
 	)
-	t.call("check", is_equal_approx(cfg.ring_radius(), cfg.arena_radius + cfg.turret_ring_offset))
+	t.call("check", is_equal_approx(cfg.ring_radius(), cfg.turret_ring_radius))
 	t.call(
 		"check",
-		is_equal_approx(cfg.camera_visible_width(), 2.0 * (cfg.ring_radius() + cfg.camera_margin)),
-		"largeur de cadrage déduite de l'arène"
+		cfg.ring_radius() < cfg.arena_radius,
+		(
+			"les tourelles sont posées DANS l'île (anneau %.1f < %.1f)"
+			% [cfg.ring_radius(), cfg.arena_radius]
+		)
 	)
 	var cam: Camera3D = g._camera.camera()
 	t.call("check", cam.keep_aspect == Camera3D.KEEP_WIDTH, "largeur fixe")
-	var focus_cases: Array[Vector2] = [
-		Vector2.ZERO,
-		Vector2(cfg.arena_radius, 0.0),
-		Vector2(-cfg.arena_radius, 0.0),
-		Vector2(0.0, cfg.arena_radius),
-		Vector2(0.0, -cfg.arena_radius)
-	]
-	var worst_x: float = 0.0
-	var worst_y: Dictionary = {}
+	t.call(
+		"check",
+		absf(g._camera.visible_width - cfg.view_width) < 0.05,
+		"largeur visible = view_width (%.1f m)" % g._camera.visible_width
+	)
 	var aspects: Array[float] = [9.0 / 21.0, 9.0 / 16.0, 3.0 / 4.0]
-	for aspect: float in aspects:
-		worst_y[aspect] = 0.0
-	for focus: Vector2 in focus_cases:
-		g._player.teleport(focus)
-		for i: int in 240:
-			g._camera.step(g.ctx, DT)
-		var points: Array[Vector3] = []
-		for turret: Turret in g._turrets.turrets:
-			for k: int in 12:
-				var foot: Vector2 = turret.pos2 + Vector2.from_angle(TAU * float(k) / 12.0)
-				points.append(Vector3(foot.x, 0.0, foot.y))
-				points.append(Vector3(foot.x, 1.6, foot.y))
-		for k: int in 72:
-			var rim: Vector2 = Vector2.from_angle(TAU * float(k) / 72.0) * cfg.arena_radius
-			points.append(Vector3(rim.x, 0.0, rim.y))
-		for point: Vector3 in points:
-			for aspect: float in aspects:
-				var n: Vector2 = _ndc(cam, point, aspect)
-				worst_x = maxf(worst_x, absf(n.x))
-				worst_y[aspect] = maxf(worst_y[aspect] as float, absf(n.y))
+	var worst_x: float = 0.0
 	var worst_tall: float = 0.0
-	for aspect: float in aspects:
-		worst_tall = maxf(worst_tall, worst_y[aspect] as float)
+	g._player.teleport(Vector2.ZERO)
+	for i: int in 240:
+		g._camera.step(g.ctx, DT)
+	for turret: Turret in g._turrets.turrets:
+		for k: int in 12:
+			var foot: Vector2 = turret.pos2 + Vector2.from_angle(TAU * float(k) / 12.0) * 1.2
+			for point: Vector3 in [Vector3(foot.x, 0.0, foot.y), Vector3(foot.x, 2.4, foot.y)]:
+				for aspect: float in aspects:
+					var n: Vector2 = _ndc(cam, point, aspect)
+					worst_x = maxf(worst_x, absf(n.x))
+					worst_tall = maxf(worst_tall, absf(n.y))
 	print(
-		(
-			(
-				"[scenario] cadrage : largeur pire cas %.3f, hauteur pire cas %.3f"
-				+ " (1.0 = bord de l'écran, écrans 9:21 à 3:4)"
-			)
-			% [worst_x, worst_tall]
-		)
+		"[scenario] cadrage : largeur pire cas %.3f, hauteur pire cas %.3f" % [worst_x, worst_tall]
 	)
 	t.call(
 		"check",
 		worst_x <= 0.97 and worst_tall <= 0.985,
 		(
-			"arène et 4 tourelles entièrement à l'écran, joueur au bord compris (%.3f / %.3f)"
+			"joueur au centre : les 4 tourelles tiennent à l'écran (%.3f / %.3f)"
 			% [worst_x, worst_tall]
 		)
 	)
-	t.call(
-		"check", worst_x >= 0.90, "et la largeur est exploitée au maximum (%.3f ≥ 0.90)" % worst_x
-	)
-	# Un seul réglage : le rayon. Tout le reste en découle.
-	var small: GameConfig = GameConfig.new()
-	small.arena_radius = 10.0
-	t.call("check", is_equal_approx(small.ring_radius(), 10.0 + small.turret_ring_offset))
+	# La caméra suit : joueur au bord, le point visé a bougé de façon sensible.
+	var before: Vector3 = cam.global_position
+	g._player.teleport(Vector2(0.0, -cfg.arena_radius * 0.9))
+	for i: int in 240:
+		g._camera.step(g.ctx, DT)
 	t.call(
 		"check",
-		small.camera_visible_width() < cfg.camera_visible_width(),
-		"arène plus petite = cadrage plus serré"
+		cam.global_position.distance_to(before) > cfg.arena_radius * 0.5,
+		"la caméra suit le joueur sur toute l'île"
 	)
 	for turret: Turret in g._turrets.turrets:
 		t.call(

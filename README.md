@@ -97,3 +97,18 @@ xvfb-run -a godot --rendering-driver opengl3 --resolution 540x960 --path . \
 ```
 Les visuels fournis (logo, icône, bannières, pièce, étoile, trophée, cadeau) sont dans
 `ui_src/provided/` ; `ui_src/` est ignoré par Godot (`.gdignore`).
+
+## Phase 7 : progression, sauvegarde, refonte du monde, de l'interface et du son
+Rapport : `docs/PHASE7.md` (captures dans `docs/phase7/`, tailles dans `docs/SIZE_SYSTEM.md`). Toute
+l'île est l'arène ; interface et palette alignées sur le logo ; nouvelle musique et nouveaux effets ;
+sauvegarde v2 (records, historique, somme de contrôle, reprise d'une partie interrompue).
+```bash
+pip install numpy scipy pillow matplotlib
+python3 audio_src/build_audio.py                  # musiques + effets + ambiance (--only music|sfx)
+python3 ui_src/build_ui_art.py                    # éléments d'interface (contours cartoon, palette du logo)
+python3 ui_src/build_palette.py                   # recolore tous les modèles (atlas), sans Blender
+python3 ui_src/build_sky_art.py                   # nuages du ciel
+xvfb-run -a godot --rendering-driver opengl3 --path . --script res://scripts/tools/render_icons.gd
+python3 ui_src/post_model_icons.py                # contour des icônes 3D (haches, tourelles)
+AX_TEST_FILE=phase7 godot --headless --path . --script res://scripts/tests/run_tests.gd   # un seul fichier de tests
+```

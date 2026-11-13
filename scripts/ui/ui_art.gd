@@ -6,27 +6,33 @@ extends RefCounted
 const BASE: String = "res://assets/ui/"
 const FONT_PATH: String = "res://assets/fonts/LilitaOne-Regular.ttf"
 
-# Palette de l'interface (celle des éléments fournis : bleu ciel, jaune/orange, rouge, pierre).
-const INK: Color = Color("#1B2554")
-const INK_SOFT: Color = Color("#27357C")
+# Palette de l'interface (phase 7) : tirée du LOGO — or / orange / rouge des lettres et du ruban,
+# pierre violette du socle, bleu clair de la lueur des haches, crème. Contour brun très sombre.
+const INK: Color = Color("#2E1712")
+const INK_SOFT: Color = Color("#4A2A22")
 const WHITE: Color = Color("#FFFFFF")
 const CREAM: Color = Color("#FFF3D6")
 const GOLD: Color = Color("#FFD43B")
-const ORANGE: Color = Color("#FF9A1A")
-const SKY: Color = Color("#3FA9FF")
-const RED: Color = Color("#F0362C")
-const GREEN: Color = Color("#34C759")
-const TEXT_DARK: Color = Color("#2A3A86")
-const TEXT_MUTED: Color = Color("#6C7AB8")
+const ORANGE: Color = Color("#FF8A24")
+const SKY: Color = Color("#5CD0FF")
+const RED: Color = Color("#E0302B")
+const GREEN: Color = Color("#58BE3E")
+const STONE: Color = Color("#6A66A6")
+const STONE_DARK: Color = Color("#3B3768")
+const TEXT_DARK: Color = Color("#3B2A5E")
+const TEXT_MUTED: Color = Color("#7C6FA3")
 
 ## Couleur du contour du texte posé sur chaque style de bouton (teinte sombre de la lèvre).
 const BUTTON_INK: Dictionary = {
-	"green": Color("#14672A"),
-	"blue": Color("#0F3C8A"),
-	"yellow": Color("#9A5200"),
-	"red": Color("#7E1410"),
-	"purple": Color("#40208A"),
-	"grey": Color("#4F5A70"),
+	"gold": Color("#8A4208"),
+	"yellow": Color("#8A4208"),
+	"orange": Color("#7A2A0C"),
+	"green": Color("#1F5E26"),
+	"blue": Color("#123F8A"),
+	"red": Color("#6E1219"),
+	"purple": Color("#34247A"),
+	"stone": Color("#2F2A5C"),
+	"grey": Color("#4B4766"),
 }
 
 static var _cache: Dictionary = {}
@@ -97,9 +103,14 @@ static func style_label(
 	l.add_theme_font_size_override(&"font_size", size)
 	l.add_theme_color_override(&"font_color", color)
 	l.add_theme_color_override(&"font_outline_color", outline)
-	l.add_theme_constant_override(
-		&"outline_size", maxi(int(size * 0.16), 3) if outline_size < 0 else outline_size
-	)
+	var os: int = maxi(int(size * 0.18), 4) if outline_size < 0 else outline_size
+	l.add_theme_constant_override(&"outline_size", os)
+	# Ombre portée nette sous les textes contourés : relief « dessin animé », lisible sur tout fond.
+	if os > 0:
+		l.add_theme_color_override(&"font_shadow_color", Color(0.1, 0.04, 0.02, 0.5))
+		l.add_theme_constant_override(&"shadow_offset_x", 0)
+		l.add_theme_constant_override(&"shadow_offset_y", maxi(int(size * 0.07), 2))
+		l.add_theme_constant_override(&"shadow_outline_size", maxi(os - 1, 1))
 
 
 ## Image étirable (9 cases) d'un élément de panneau / bouton / barre.

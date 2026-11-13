@@ -153,7 +153,6 @@ func test_stress_full_cap_and_invariants() -> void:
 		var ring: float = 3.0 + float(i % 5) * 1.0
 		em.spawn(types[i % types.size()], Vector2.from_angle(angle) * ring)
 	t.call("check", g.ctx.enemies.find_free() == -1, "pool d'ennemis plein (%d)" % cap)
-	var arena_r: float = g.ctx.config.arena_radius
 	var inside: bool = true
 	var max_axes: int = 0
 	var start_us: int = Time.get_ticks_usec()
@@ -162,14 +161,19 @@ func test_stress_full_cap_and_invariants() -> void:
 		_joystick(g).vector = Vector2(cos(float(i) * 0.04), sin(float(i) * 0.04))
 		g.step(DT)
 		max_axes = maxi(max_axes, pm.active_count())
-		if g.ctx.player_pos.length() > arena_r + 0.001:
+		var shape: IslandShape = g.ctx.shape
+		var pp: Vector2 = g.ctx.player_pos
+		if pp.length() > shape.player_limit(IslandShape.theta_of(pp)) + 0.001:
 			inside = false
 		for e: Enemy in g.ctx.enemies.slots:
-			if e.is_active() and e.pos.length() > arena_r + 0.001:
+			if (
+				e.is_active()
+				and e.pos.length() > shape.enemy_limit(IslandShape.theta_of(e.pos)) + 0.001
+			):
 				inside = false
 	var ms: float = float(Time.get_ticks_usec() - start_us) / 1000.0 / float(steps)
 	print("[scenario] stress %d ennemis : %.2f ms/tick, haches max %d" % [cap, ms, max_axes])
-	t.call("check", inside, "joueur et ennemis restent dans l'arène")
+	t.call("check", inside, "joueur et ennemis restent sur l'île (rivage réel)")
 	t.call("check", max_axes <= g.ctx.config.axe_pool_size, "plafond de haches respecté")
 	t.call("check", ms < 10.0, "simulation < 10 ms/tick sur la machine de CI (%.2f)" % ms)
 	_free_gameplay(g)

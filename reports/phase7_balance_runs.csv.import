@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://70g16gcm86ai"
+
+[deps]
+
+files=["res://reports/phase7_balance_runs.run.translation", "res://reports/phase7_balance_runs.seed.translation", "res://reports/phase7_balance_runs.survived.translation", "res://reports/phase7_balance_runs.died.translation", "res://reports/phase7_balance_runs.wave.translation", "res://reports/phase7_balance_runs.kills.translation", "res://reports/phase7_balance_runs.coins.translation", "res://reports/phase7_balance_runs.coins.translation", "res://reports/phase7_balance_runs.bosses.translation", "res://reports/phase7_balance_runs.levels.translation", "res://reports/phase7_balance_runs.peak.translation", "res://reports/phase7_balance_runs.pacing.translation", "res://reports/phase7_balance_runs.pacing.translation", "res://reports/phase7_balance_runs.damage.translation", "res://reports/phase7_balance_runs.ms.translation"]
+
+source_file="res://reports/phase7_balance_runs.csv"
+dest_files=["res://reports/phase7_balance_runs.run.translation", "res://reports/phase7_balance_runs.seed.translation", "res://reports/phase7_balance_runs.survived.translation", "res://reports/phase7_balance_runs.died.translation", "res://reports/phase7_balance_runs.wave.translation", "res://reports/phase7_balance_runs.kills.translation", "res://reports/phase7_balance_runs.coins.translation", "res://reports/phase7_balance_runs.coins.translation", "res://reports/phase7_balance_runs.bosses.translation", "res://reports/phase7_balance_runs.levels.translation", "res://reports/phase7_balance_runs.peak.translation", "res://reports/phase7_balance_runs.pacing.translation", "res://reports/phase7_balance_runs.pacing.translation", "res://reports/phase7_balance_runs.damage.translation", "res://reports/phase7_balance_runs.ms.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

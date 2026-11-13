@@ -1,0 +1,5 @@
+policy,run,seed,survived_s,died,wave,kills,coins_earned,coins_spent,bosses,levels,peak_enemies,pacing_min,pacing_max,damage_taken,ms_per_tick
+none,0,7100,420.0,0,19,316,2071,0,1,1-1-1-1,24,1.000,1.150,5017,0.517
+none,1,7101,420.1,0,18,300,1768,0,1,1-1-1-1,20,1.000,1.150,5056,0.472
+lowest,0,7100,420.1,0,25,493,4918,4813,2,10-9-9-9,16,1.000,1.150,3263,0.533
+lowest,1,7101,420.1,0,25,481,4795,4212,2,9-9-9-9,17,1.000,1.150,4008,0.514

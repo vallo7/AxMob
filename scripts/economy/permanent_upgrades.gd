@@ -10,7 +10,7 @@ const MAX_LEVEL: int = 10
 ## id, icône, coût de base, multiplicateur, bonus par niveau, unité d'affichage.
 const DEFS: Array[Dictionary] = [
 	{"id": "hp", "icon": "heart", "base": 60, "mult": 1.5, "per": 8.0, "unit": "hp"},
-	{"id": "power", "icon": "axe", "base": 80, "mult": 1.5, "per": 0.06, "unit": "pct"},
+	{"id": "power", "icon": "model_axe_heavy", "base": 80, "mult": 1.5, "per": 0.06, "unit": "pct"},
 	{"id": "rate", "icon": "bolt", "base": 80, "mult": 1.5, "per": 0.04, "unit": "pct"},
 	{"id": "coins", "icon": "coin_plus", "base": 100, "mult": 1.5, "per": 0.05, "unit": "pct"},
 	{"id": "speed", "icon": "speed_blue", "base": 70, "mult": 1.5, "per": 0.025, "unit": "pct"},

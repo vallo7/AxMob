@@ -62,8 +62,10 @@ const DEFS: Dictionary = {
 	{"n": 1, "vol": 0.0, "pitch": 0.0, "cd": 0.5, "max": 1, "prio": 3, "bus": &"SFX"},
 	&"boss_defeated":
 	{"n": 1, "vol": 0.0, "pitch": 0.0, "cd": 1.0, "max": 1, "prio": 3, "bus": &"UI"},
-	&"enemy_spawn":
-	{"n": 3, "vol": -3.0, "pitch": 0.10, "cd": 0.12, "max": 3, "prio": 0, "bus": &"SFX"},
+	&"spawn_water":
+	{"n": 3, "vol": -2.0, "pitch": 0.10, "cd": 0.12, "max": 3, "prio": 0, "bus": &"SFX"},
+	&"spawn_sand":
+	{"n": 3, "vol": -2.0, "pitch": 0.10, "cd": 0.12, "max": 3, "prio": 0, "bus": &"SFX"},
 	&"enemy_windup":
 	{"n": 2, "vol": -2.0, "pitch": 0.08, "cd": 0.25, "max": 2, "prio": 0, "bus": &"SFX"},
 	&"combat_activate":
@@ -84,6 +86,10 @@ const DEFS: Dictionary = {
 	&"step_sand":
 	{"n": 4, "vol": -5.0, "pitch": 0.08, "cd": 0.07, "max": 2, "prio": 0, "bus": &"SFX"},
 	&"ui_tap": {"n": 1, "vol": 0.0, "pitch": 0.03, "cd": 0.03, "max": 3, "prio": 3, "bus": &"UI"},
+	&"ui_down": {"n": 1, "vol": 0.0, "pitch": 0.04, "cd": 0.03, "max": 2, "prio": 3, "bus": &"UI"},
+	&"ui_pop": {"n": 1, "vol": 0.0, "pitch": 0.08, "cd": 0.045, "max": 3, "prio": 3, "bus": &"UI"},
+	&"ui_whoosh":
+	{"n": 1, "vol": 0.0, "pitch": 0.03, "cd": 0.12, "max": 1, "prio": 3, "bus": &"UI"},
 	&"ui_confirm":
 	{"n": 1, "vol": 0.0, "pitch": 0.0, "cd": 0.05, "max": 2, "prio": 3, "bus": &"UI"},
 	&"ui_denied": {"n": 1, "vol": 0.0, "pitch": 0.0, "cd": 0.1, "max": 1, "prio": 3, "bus": &"UI"},

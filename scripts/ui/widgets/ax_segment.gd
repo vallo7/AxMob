@@ -56,5 +56,5 @@ func _on_pressed(i: int) -> void:
 func _restyle() -> void:
 	for i: int in _buttons.size():
 		var b: AxButton = _buttons[i]
-		b.style = "yellow" if i == selected else ("grey" if _locked[i] else "blue")
+		b.style = "gold" if i == selected else ("grey" if _locked[i] else "stone")
 		b.icon_name = "lock" if _locked[i] else ""

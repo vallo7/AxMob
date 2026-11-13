@@ -62,9 +62,16 @@ func step(dt: float, input_vec: Vector2) -> void:
 		_vel, desired, speed / _cfg.accel_time, speed / _cfg.decel_time, dt
 	)
 	_pos += _vel * dt
-	var clamped: Vector2 = Steering.clamp_to_arena(_pos, _cfg.player_radius, _cfg.arena_radius)
+	# Obstacles du décor (palmiers, rochers, tourelles) puis rivage : le joueur glisse le long des
+	# deux.
+	var pushed: Vector2 = _ctx.obstacles.push_out(_pos, _cfg.player_radius)
+	if pushed != _pos:
+		var normal: Vector2 = (pushed - _pos).normalized()
+		_vel -= normal * minf(_vel.dot(normal), 0.0)
+		_pos = pushed
+	var clamped: Vector2 = _ctx.shape.clamp_player(_pos, _cfg.player_radius)
 	if clamped != _pos:
-		# Glisse le long du bord : on retire la composante de vitesse qui sort de l'arène.
+		# Glisse le long du rivage : on retire la composante de vitesse qui part vers la mer.
 		var outward: Vector2 = clamped.normalized()
 		_vel -= outward * maxf(_vel.dot(outward), 0.0)
 		_pos = clamped

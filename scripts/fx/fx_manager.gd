@@ -391,21 +391,67 @@ func _on_enemy_died(enemy_id: int, reward: int, position: Vector3) -> void:
 		EventBus.multi_kill.emit(_kill_times.size(), position)
 
 
-func _on_enemy_spawned(_enemy_id: int, position: Vector2) -> void:
+func _on_enemy_spawned(enemy_id: int, position: Vector2) -> void:
 	var p: Vector3 = Vector3(position.x, 0.0, position.y)
-	_ring(p, 0.2, 1.3, 0.35, Color(0.7, 1.0, 0.9, 0.8), 0.3)
-	for i: int in _count(3):
+	var e: Enemy = _ctx.enemies.slots[enemy_id]
+	var big: float = clampf(e.data.radius / 0.5, 0.8, 3.2) if e.data != null else 1.0
+	if e.from_water:
+		_spawn_water(p, big)
+	else:
+		_spawn_sand(p, big)
+
+
+## Sortie de l'eau : anneau d'écume, gerbe de gouttes, bulles claires.
+func _spawn_water(p: Vector3, big: float) -> void:
+	var foam: Color = Color(0.92, 1.0, 1.0, 0.9)
+	_ring(p, 0.3 * big, 2.1 * big, 0.5, foam, 0.28)
+	_ring(p, 0.2 * big, 1.3 * big, 0.38, Color(0.55, 0.9, 1.0, 0.7), 0.2)
+	for i: int in _count(int(7.0 * big)):
 		var a: float = _rng.randf() * TAU
-		_puff(p + Vector3(0.0, 0.3, 0.0), _polar(a, 1.6, 1.5), SAND, 0.7, 0.5, 1.4)
-	for i: int in _count(4):
 		_spark(
-			p + Vector3(_rng.randf_range(-0.4, 0.4), 0.2, _rng.randf_range(-0.4, 0.4)),
-			Vector3(0.0, _rng.randf_range(2.0, 4.0), 0.0),
-			Color(0.8, 1.0, 0.95, 0.9),
-			0.22,
-			0.5,
-			Shape.STAR,
-			-1.0
+			p + Vector3(cos(a) * 0.4 * big, 0.15, sin(a) * 0.4 * big),
+			Vector3(cos(a) * 1.6, _rng.randf_range(3.2, 5.6), sin(a) * 1.6),
+			Color(0.8, 0.96, 1.0, 0.95),
+			_rng.randf_range(0.14, 0.26),
+			0.55,
+			Shape.ROUND,
+			14.0
+		)
+	for i: int in _count(int(3.0 * big)):
+		_puff(
+			p + Vector3(0.0, 0.2, 0.0),
+			_polar(_rng.randf() * TAU, 1.3, 1.1),
+			Color(1.0, 1.0, 1.0, 0.85),
+			0.75 * big,
+			0.55,
+			1.6
+		)
+
+
+## Sortie du sable : fissure sombre, éclats de sable et de cailloux, nuage de poussière.
+func _spawn_sand(p: Vector3, big: float) -> void:
+	_ring(p, 0.2 * big, 1.5 * big, 0.45, Color(0.55, 0.36, 0.16, 0.8), 0.3)
+	_ring(p, 0.3 * big, 2.2 * big, 0.55, Color(1.0, 0.9, 0.6, 0.55), 0.22)
+	for i: int in _count(int(6.0 * big)):
+		var a: float = _rng.randf() * TAU
+		_puff(
+			p + Vector3(0.0, 0.25, 0.0),
+			_polar(a, 1.7, 1.5),
+			Color(0.93, 0.78, 0.5, 0.92),
+			0.8 * big,
+			0.6,
+			1.5
+		)
+	for i: int in _count(int(8.0 * big)):
+		var a2: float = _rng.randf() * TAU
+		_spark(
+			p + Vector3(0.0, 0.2, 0.0),
+			Vector3(cos(a2) * 2.2, _rng.randf_range(3.0, 5.4), sin(a2) * 2.2),
+			Color(0.62, 0.42, 0.2, 1.0),
+			_rng.randf_range(0.1, 0.2),
+			0.6,
+			Shape.SQUARE,
+			16.0
 		)
 
 

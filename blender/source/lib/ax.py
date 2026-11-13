@@ -40,33 +40,35 @@ PALETTE_PNG = os.path.join(TEX_DIR, "palette.png")
 FPS = 30
 
 # --------------------------------------------------------------------------------------------
-# Palette « plage » : style jeu mobile fun / hyper casual (couleurs franches, dégradés doux)
+# Palette « plage » : style jeu mobile fun / hyper casual (couleurs franches, dégradés doux).
+# Phase 7 : teintes ramenées vers celles du LOGO (pierre violette pour l'acier et les gris, or / orange /
+# rouge chauds, bois orangé, corail à la place du rose). Régénérer l'atlas : python ui_src/build_palette.py
 # --------------------------------------------------------------------------------------------
 
 COLORS = {
     # sable et mer
-    "sand": "#F2D08A", "sand_light": "#FBE6B0", "sand_dark": "#D9AC63", "sand_wet": "#C9985A",
-    "water": "#34C6E0", "water_light": "#7CE8EC", "water_deep": "#1E8FD0", "foam": "#FFFFFF",
+    "sand": "#F6CF7A", "sand_light": "#FBE6B0", "sand_dark": "#D9AC63", "sand_wet": "#C9985A",
+    "water": "#34C6E0", "water_light": "#CFCBF2", "water_deep": "#1E8FD0", "foam": "#FFFFFF",
     # neutres
-    "white": "#FFF8EC", "cream": "#FFE9C4", "grey_light": "#CBD5DE", "grey": "#8A97A8",
-    "grey_dark": "#4D5870", "ink": "#232638", "black": "#14141F",
+    "white": "#FFF8EC", "cream": "#FFE9C4", "grey_light": "#CFCBE2", "grey": "#8883A8",
+    "grey_dark": "#4A4670", "ink": "#232638", "black": "#14141F",
     # chauds
-    "red": "#F04A3F", "red_dark": "#B8302C", "coral": "#FF7A68", "orange": "#FF9230",
+    "red": "#E8362D", "red_dark": "#B8302C", "coral": "#FF7A68", "orange": "#FF9230",
     "orange_dark": "#E5701A", "yellow": "#FFD43B", "gold": "#FFC233", "gold_dark": "#D89010",
     # roses / violets
-    "pink": "#FF6FAE", "pink_light": "#FFA6CB", "pink_dark": "#D94A8C", "purple": "#9B5CFF",
+    "pink": "#FF6B4A", "pink_light": "#FFA27E", "pink_dark": "#D4402C", "purple": "#9B5CFF",
     "purple_dark": "#6B3BC4", "purple_light": "#C3A0FF", "magenta": "#D43FD6",
     # froids
-    "teal": "#1CC8B0", "teal_dark": "#109480", "blue": "#3E7BFF", "blue_dark": "#2A52C9",
-    "blue_light": "#8DB4FF", "navy": "#26397A", "indigo": "#4B47D8",
+    "teal": "#6A66B4", "teal_dark": "#443F86", "blue": "#3E7BFF", "blue_dark": "#2A52C9",
+    "blue_light": "#A9A5DD", "navy": "#26397A", "indigo": "#4B47D8",
     # verts
     "lime": "#9BE04E", "green": "#3FBF6A", "green_dark": "#24905A", "green_light": "#7CDB8A",
     "palm": "#2EA65A", "palm_dark": "#1B7A45", "olive": "#8CC24A",
     # bois, peau
-    "wood": "#C27B3C", "wood_dark": "#8A5428", "wood_light": "#E0A265", "skin": "#FFC9A0",
+    "wood": "#B8693A", "wood_dark": "#7E4A2A", "wood_light": "#DC9A62", "skin": "#FFC9A0",
     "skin_dark": "#EBA37C", "blush": "#FF9B94",
     # métal
-    "steel": "#B7C6D6", "steel_light": "#E4EDF6", "steel_dark": "#7388A3",
+    "steel": "#ABA8D2", "steel_light": "#E8E5F8", "steel_dark": "#625F98",
 }
 ORDER = list(COLORS)
 # Roundeur par défaut des boîtes/prismes sans congé explicite (phase 5).

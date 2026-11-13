@@ -22,6 +22,7 @@ func setup(ctx: RunContext, datas: Array[TurretData]) -> void:
 		var turret: Turret = TURRET_SCENE.instantiate() as Turret
 		add_child(turret)
 		turret.setup(i, datas[i], ctx, slot)
+		ctx.obstacles.add(slot, ctx.config.turret_collision_radius)
 		turrets.append(turret)
 	EventBus.turret_upgraded.connect(_on_turret_upgraded)
 

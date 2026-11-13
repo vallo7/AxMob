@@ -48,6 +48,8 @@ var hit_kick: float = 0.0
 var hit_dir: Vector2 = Vector2.ZERO
 var juice_phase: float = 0.0
 var idle_phase: float = 0.0
+## Phase 7 : vrai si l'ennemi sort de l'EAU (rivage), faux s'il sort du SABLE.
+var from_water: bool = false
 
 
 func _init(p_id: int) -> void:

@@ -231,19 +231,43 @@ func test_each_axe_category_shows_its_own_model() -> void:
 	_free(g)
 
 
-func test_beach_arena_scales_with_radius_and_keeps_play_area_clear() -> void:
+func test_beach_island_is_the_arena_with_clear_decor_rules() -> void:
 	var g: Gameplay = await _make_gameplay()
 	var island: Node3D = g._arena.get_node("Island") as Node3D
-	var k: float = g.ctx.config.arena_radius / Arena.MODEL_RADIUS
+	var k: float = g.ctx.config.island_scale()
 	t.call("check", is_equal_approx(island.scale.x, k), "île mise à l'échelle du rayon de jeu")
 	t.call("check", g._arena.ocean_material != null, "mer animée (shader)")
-	# Le décor reste hors de la zone de jeu et de la bouée (rayon de jeu + 0,9 m).
+	t.call("check", g._arena.backdrop != null, "arrière-plan horizon présent")
+	t.call("check", island.find_child("Rim", true, false) == null, "plus de bordure d'arène")
+	var tall: PackedStringArray = PackedStringArray(
+		["deco_palm", "deco_umbrella", "deco_sandcastle"]
+	)
+	var solids: int = 0
 	for entry: Dictionary in Arena.DECOR:
-		t.call(
-			"check",
-			(entry["r"] as float) >= Arena.MODEL_RADIUS + 1.9,
-			"décor %s à %.1f m, hors de l'arène" % [entry["model"], entry["r"]]
-		)
+		var angle: float = entry["angle"] as float
+		var inland: float = entry["in"] as float
+		var model: String = entry["model"] as String
+		if tall.has(model):
+			t.call(
+				"check",
+				absf(angle) <= 105.0,
+				"%s (%.0f°) : élément haut au nord, jamais devant le joueur" % [model, angle]
+			)
+		if (entry["solid"] as float) > 0.0:
+			solids += 1
+			t.call("check", inland > 0.0, "%s solide sur le sable (pas dans l'eau)" % model)
+	# 4 tourelles + les décors solides sont des obstacles.
+	t.call(
+		"check",
+		g.ctx.obstacles.count() == 4 + solids,
+		"obstacles : 4 tourelles + %d décors (%d)" % [solids, g.ctx.obstacles.count()]
+	)
+	# Le centre de l'île est dégagé pour le combat.
+	t.call(
+		"check",
+		not g.ctx.obstacles.overlaps(Vector2.ZERO, 0.5, 4.0),
+		"le centre de l'île est dégagé (4 m)"
+	)
 	_free(g)
 
 

@@ -66,7 +66,7 @@ func _ready() -> void:
 	rib.offset_bottom = 142.0
 	rib.stretch_mode = TextureRect.STRETCH_SCALE
 	sheet.add_child(rib)
-	var t: Label = UiArt.label(title, 62, UiArt.WHITE, Color("#0F3C8A"))
+	var t: Label = UiArt.label(title, 62, UiArt.WHITE, Color("#2F2A5C"))
 	title_label = t
 	t.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	t.anchor_left = 0.5
@@ -106,16 +106,52 @@ func _on_back() -> bool:
 
 
 func _animate_in() -> void:
-	sheet.pivot_offset = Vector2(sheet.size.x * 0.5, 120.0)
-	sheet.scale = Vector2(0.88, 0.88)
+	# Entrée dynamique (phase 7) : la feuille MONTE du bas avec un rebond, l'écran se noircit, puis le
+	# contenu apparaît en cascade (chaque ligne « pop » l'une après l'autre).
+	AudioManager.play_ui(&"ui_whoosh")
 	sheet.modulate.a = 0.0
 	dim.modulate.a = 0.0
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	var rest: Vector2 = sheet.position
+	sheet.pivot_offset = sheet.size * 0.5
+	sheet.position = rest + Vector2(0.0, 240.0)
+	sheet.scale = Vector2(0.94, 0.94)
 	var t: Tween = create_tween().set_parallel(true)
-	t.tween_property(sheet, "scale", Vector2.ONE, 0.26).set_trans(Tween.TRANS_BACK).set_ease(
+	t.tween_property(sheet, "position", rest, 0.46).set_trans(Tween.TRANS_BACK).set_ease(
+		Tween.EASE_OUT
+	)
+	t.tween_property(sheet, "scale", Vector2.ONE, 0.46).set_trans(Tween.TRANS_BACK).set_ease(
 		Tween.EASE_OUT
 	)
 	t.tween_property(sheet, "modulate:a", 1.0, 0.16)
-	t.tween_property(dim, "modulate:a", 1.0, 0.2)
+	t.tween_property(dim, "modulate:a", 1.0, 0.24)
+	_stagger_content()
+
+
+## Apparition en cascade des lignes du contenu (limitée aux 12 premières : le reste est instantané).
+func _stagger_content() -> void:
+	if content == null:
+		return
+	var i: int = 0
+	for child: Node in content.get_children():
+		var c: Control = child as Control
+		if c == null:
+			continue
+		if i >= 12:
+			break
+		c.pivot_offset = c.size * 0.5
+		c.modulate.a = 0.0
+		c.scale = Vector2(0.9, 0.9)
+		var ct: Tween = create_tween()
+		ct.tween_interval(0.14 + 0.05 * float(i))
+		ct.set_parallel(true)
+		ct.tween_property(c, "modulate:a", 1.0, 0.16)
+		ct.tween_property(c, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(
+			Tween.EASE_OUT
+		)
+		i += 1
 
 
 func close() -> void:
@@ -124,9 +160,15 @@ func close() -> void:
 	_closing = true
 	UIManager.pop_back(self)
 	var t: Tween = create_tween().set_parallel(true)
-	t.tween_property(sheet, "scale", Vector2(0.92, 0.92), 0.14)
-	t.tween_property(sheet, "modulate:a", 0.0, 0.14)
-	t.tween_property(dim, "modulate:a", 0.0, 0.16)
+	(
+		t
+		. tween_property(sheet, "position:y", sheet.position.y + 200.0, 0.2)
+		. set_trans(Tween.TRANS_BACK)
+		. set_ease(Tween.EASE_IN)
+	)
+	t.tween_property(sheet, "scale", Vector2(0.95, 0.95), 0.2)
+	t.tween_property(sheet, "modulate:a", 0.0, 0.18)
+	t.tween_property(dim, "modulate:a", 0.0, 0.2)
 	t.chain().tween_callback(
 		func() -> void:
 			closed.emit()

@@ -51,7 +51,7 @@ func _ready() -> void:
 	box.offset_bottom = -90.0
 	box.add_theme_constant_override(&"separation", 24)
 	panel.add_child(box)
-	_add(box, "resume", "green", "play", func() -> void: resume_pressed.emit(), 150.0)
+	_add(box, "resume", "gold", "play", func() -> void: resume_pressed.emit(), 150.0)
 	_add(box, "restart", "blue", "replay", func() -> void: restart_pressed.emit())
 	_add(box, "settings", "blue", "gear", _open_settings)
 	_add(box, "main_menu", "red", "home", func() -> void: menu_pressed.emit())

@@ -22,7 +22,8 @@ func setup(ctx: RunContext, camera: Camera3D) -> void:
 	_camera = camera
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_top = UiKit.top_inset() + 24.0 + 38.0 + 100.0
+	# Sous le bloc du HUD (PV, vague, temps) : jamais sous ses éléments (phase 7).
+	_top = UiKit.top_inset() + 22.0 + 128.0 + 84.0 + 34.0
 	EventBus.boss_warning.connect(_on_warning)
 	EventBus.boss_spawned.connect(func(_id: int) -> void: _warning_left = 0.0)
 	EventBus.boss_phase_changed.connect(_on_phase)

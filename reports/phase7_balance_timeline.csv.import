@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://lu474uimoxbx"
+
+[deps]
+
+files=["res://reports/phase7_balance_timeline.run.translation", "res://reports/phase7_balance_timeline.t.translation", "res://reports/phase7_balance_timeline.wave.translation", "res://reports/phase7_balance_timeline.kills.translation", "res://reports/phase7_balance_timeline.coins.translation", "res://reports/phase7_balance_timeline.coins.translation", "res://reports/phase7_balance_timeline.hp.translation", "res://reports/phase7_balance_timeline.enemies.translation", "res://reports/phase7_balance_timeline.levels.translation"]
+
+source_file="res://reports/phase7_balance_timeline.csv"
+dest_files=["res://reports/phase7_balance_timeline.run.translation", "res://reports/phase7_balance_timeline.t.translation", "res://reports/phase7_balance_timeline.wave.translation", "res://reports/phase7_balance_timeline.kills.translation", "res://reports/phase7_balance_timeline.coins.translation", "res://reports/phase7_balance_timeline.coins.translation", "res://reports/phase7_balance_timeline.hp.translation", "res://reports/phase7_balance_timeline.enemies.translation", "res://reports/phase7_balance_timeline.levels.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

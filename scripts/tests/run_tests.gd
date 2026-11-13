@@ -42,7 +42,7 @@ func _run_dir(dir_path: String) -> void:
 		return
 	var files: PackedStringArray = PackedStringArray()
 	for f: String in dir.get_files():
-		if f.begins_with("test_") and f.ends_with(".gd"):
+		if f.begins_with("test_") and f.ends_with(".gd") and _matches(f, _file_filter()):
 			files.append(f)
 	files.sort()
 	for f: String in files:
@@ -51,9 +51,23 @@ func _run_dir(dir_path: String) -> void:
 		inst.set("t", self)
 		for m: Dictionary in script.get_script_method_list():
 			var name: String = m["name"]
-			if name.begins_with("test_"):
+			if name.begins_with("test_") and _matches(name, _method_filter()):
 				_current = "%s::%s" % [f, name]
 				await inst.call(name)
+
+
+## Filtres de développement : AX_TEST_FILE=phase5 AX_TEST_METHOD=splash (sous-chaînes ; vide =
+## tout).
+func _matches(text: String, filter: String) -> bool:
+	return filter.is_empty() or text.contains(filter)
+
+
+func _file_filter() -> String:
+	return OS.get_environment("AX_TEST_FILE")
+
+
+func _method_filter() -> String:
+	return OS.get_environment("AX_TEST_METHOD")
 
 
 func check(cond: bool, msg: String = "") -> void:

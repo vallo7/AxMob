@@ -142,8 +142,11 @@ func _on_enemy_died(enemy_id: int, reward: int, position: Vector3) -> void:
 		AudioManager.play(&"coin_spawn", pos, 0.0, 1.0, -1, _ctx.player_pos)
 
 
-func _on_enemy_spawned(_enemy_id: int, position: Vector2) -> void:
-	AudioManager.play(&"enemy_spawn", position, 0.0, 1.0, -1, _ctx.player_pos)
+func _on_enemy_spawned(enemy_id: int, position: Vector2) -> void:
+	var from_water: bool = _ctx.enemies.slots[enemy_id].from_water
+	AudioManager.play(
+		&"spawn_water" if from_water else &"spawn_sand", position, 0.0, 1.0, -1, _ctx.player_pos
+	)
 
 
 func _on_enemy_windup(enemy_id: int, charging: bool) -> void:

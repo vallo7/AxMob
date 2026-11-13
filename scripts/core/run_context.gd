@@ -15,6 +15,9 @@ var player_vel: Vector2 = Vector2.ZERO
 var player_alive: bool = true
 var player_hp_fraction: float = 1.0
 var grid: SpatialGrid = SpatialGrid.new(2.0)
+## Forme réelle de l'île (limites joueur / ennemis) et obstacles solides du décor.
+var shape: IslandShape
+var obstacles: Obstacles = Obstacles.new()
 var enemies: EnemyStore
 var combat: CombatWindow
 var wave: int = 0
@@ -40,6 +43,7 @@ var turret_tables: Array = []
 func _init(p_config: GameConfig, p_balance: BalanceConfig) -> void:
 	config = p_config
 	balance = p_balance
+	shape = IslandShape.new(p_config.island_scale())
 	combat = CombatWindow.new(p_config.window_duration, p_config.activation_cooldown)
 	enemies = EnemyStore.new(p_config.enemy_cap)
 

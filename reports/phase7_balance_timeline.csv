@@ -1,0 +1,5 @@
+policy,run,t_s,wave,kills,coins_earned,coins_spent,hp,enemies,levels
+none,0,30,3,25,27,0,92,0,1-1-1-1
+none,1,30,4,23,27,0,67,1,1-1-1-1
+lowest,0,30,3,25,27,14,74,0,2-1-1-1
+lowest,1,30,3,23,26,14,46,1,2-1-1-1

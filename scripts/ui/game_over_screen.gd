@@ -100,7 +100,7 @@ func _ready() -> void:
 	_revive.visible = false
 	_revive.pressed.connect(func() -> void: revive_pressed.emit())
 	bx.add_child(_revive)
-	var again: AxButton = AxButton.make(Loc.t("play_again"), "green", Vector2(0, 140), 54, "replay")
+	var again: AxButton = AxButton.make(Loc.t("play_again"), "gold", Vector2(0, 140), 54, "replay")
 	again.pressed.connect(func() -> void: play_again_pressed.emit())
 	bx.add_child(again)
 	var menu: AxButton = AxButton.make(Loc.t("main_menu"), "blue", Vector2(0, 112), 42, "home")

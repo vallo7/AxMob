@@ -1,8 +1,12 @@
-"""Définition de tous les effets sonores du jeu (synthèse). Chaque fonction prend l'indice de
-variante `v` (rotation sans répétition dans le jeu) et renvoie un tableau mono.
-REGISTRY : nom -> (fonction, nombre de variantes, pic cible en dBFS).
-Les pics cibles fixent la HIÉRARCHIE sonore : l'important (dégâts subis, boss, zone) est plus fort,
-le fréquent (pas, étincelles, pièces) plus discret, pour que la bataille reste lisible."""
+"""Effets sonores d'AxMob (phase 7) : refonte « arcade d'action » — plus sec, plus percutant, moins
+« jouet » que la phase 5 (fini les bulles, marimbas et steel drums). Principes :
+ - chaque son est construit en COUCHES : transitoire (clic/claque), corps (grave ou matière),
+   queue (air, débris, métal) ; le transitoire donne l'attaque nette, le corps le poids ;
+ - HIÉRARCHIE par les pics cibles (REGISTRY) : l'important (dégâts subis, boss, zone) dépasse les
+   effets fréquents (lancers, impacts, pièces) ; la musique vit plus bas encore ;
+ - les sons fréquents restent courts, ternes dans l'aigu (pas de fatigue) et variés (3+ variantes) ;
+ - interface : clics doux et propres, jingles à base de cuivres/cloches discrets (pas de marimba).
+Déterministe : graine fixe (dsp.RNG). Sorties mono 44,1 kHz, converties par build_audio.py."""
 
 import numpy as np
 
@@ -10,8 +14,7 @@ import dsp
 import instruments as I
 from dsp import SR, n_of
 
-PENTA = [dsp.hz(n) for n in ("C7", "D7", "E7", "G7", "A7")]
-COIN_NOTES = [dsp.hz(n) for n in ("C6", "D6", "E6", "G6", "A6", "C7", "D7", "E7")]
+H = dsp.hz
 
 
 def stack(*parts):
@@ -30,399 +33,377 @@ def whoosh(dur, f0, f1, width=1.4, peak=0.3, curve=0.85):
     return dsp.sweep_filter(dsp.noise(dur), f0, f1, "band", q_oct=width, curve=curve) * dsp.swell_env(n, peak, 1.6, 1.6)
 
 
+def thud(f0, f1, dur, tau, curve=4.0):
+    """Corps grave : sinus qui chute de f0 à f1."""
+    return dsp.osc(dsp.glide(f0, f1, dur, curve), shape="sine") * dsp.exp_env(n_of(dur), tau)
+
+
+def snap(dur=0.02, lo=1500.0, hi=6000.0, tau=0.005):
+    n = n_of(dur)
+    return dsp.bp(dsp.noise(dur), lo, hi) * dsp.exp_env(n, tau)
+
+
+def metal(f, dur=0.4, tau=0.18, ratios=(1.0, 2.32, 4.25, 6.63), amps=(1.0, 0.6, 0.35, 0.2)):
+    """Résonance métallique inharmonique (lame, cloche, acier)."""
+    return dsp.modal(f, dur, list(ratios), list(amps), [tau, tau * 0.7, tau * 0.5, tau * 0.35])
+
+
+def formant(f0, dur, formants, vib=0.0, breath=0.1):
+    """Voix grognée : scie filtrée par des formants (sons de monstre / de souffle du héros)."""
+    n = n_of(dur)
+    t = np.arange(n) / SR
+    f = f0 * (1.0 + vib * np.sin(2 * np.pi * 6.0 * t))
+    src = dsp.osc(f, None, "saw") if False else dsp.osc(f, dur, "saw")
+    out = np.zeros(n)
+    for fc, bw, g in formants:
+        out += dsp.bp(src, fc * (1 - bw), fc * (1 + bw)) * g
+    return out + dsp.bp(dsp.noise(dur), 800, 3500) * breath
+
+
 # ------------------------------------------------------------------ lancers de haches
 def throw_rapid(v):
     pf = pf_of(v)
-    thump = dsp.osc(dsp.glide(210 * pf, 120 * pf, 0.08), shape="sine") * dsp.exp_env(n_of(0.08), 0.025)
-    twang = dsp.modal(430 * pf, 0.14, [1, 2.01, 3.02], [1, 0.4, 0.2], [0.05, 0.03, 0.015])
-    x = stack((whoosh(0.22, 1100 * pf, 5200 * pf), 0.0, 0.55), (twang, 0.0, 0.3), (thump, 0.0, 0.55),
-              (dsp.click(0.008, 3200), 0.0, 0.5))
-    return dsp.reverb(x, 0.22, 0.1)
+    mech = thud(190 * pf, 95 * pf, 0.07, 0.022) * 0.7
+    air = whoosh(0.2, 1400 * pf, 6200 * pf, 1.5, 0.32)
+    shing = metal(3300 * pf, 0.1, 0.03, (1.0, 2.7), (1.0, 0.4)) * 0.35
+    return dsp.reverb(stack((mech, 0, 0.6), (snap(0.012, 2500, 7000, 0.004), 0, 0.5), (air, 0.005, 0.55), (shing, 0.01, 0.4)), 0.2, 0.08)
 
 
 def throw_heavy(v):
     pf = pf_of(v, 0.06)
-    boom = dsp.osc(dsp.glide(165 * pf, 46 * pf, 0.55, 4), shape="sine") * dsp.exp_env(n_of(0.55), 0.17)
-    knock = dsp.modal(110 * pf, 0.28, [1, 2.3, 3.7], [1, 0.5, 0.25], [0.09, 0.05, 0.03])
-    creak = whoosh(0.3, 280, 900, 1.2, 0.7) * 0.5
-    x = stack((boom, 0.0, 0.95), (knock, 0.0, 0.6), (creak, 0.0, 0.5), (whoosh(0.62, 350 * pf, 1800 * pf, 1.6, 0.28), 0.03, 0.65),
-              (dsp.click(0.01, 1800), 0.0, 0.6))
-    return dsp.reverb(x, 0.45, 0.2)
+    boom = thud(150 * pf, 44 * pf, 0.5, 0.15)
+    chunk = dsp.lp(dsp.noise(0.1), 900) * dsp.exp_env(n_of(0.1), 0.03)
+    air = whoosh(0.5, 300 * pf, 2000 * pf, 1.6, 0.3) * 0.8
+    return dsp.reverb(stack((boom, 0, 0.9), (chunk, 0, 0.8), (snap(0.015, 900, 3500, 0.005), 0, 0.5), (air, 0.02, 0.6)), 0.4, 0.14)
 
 
 def throw_multi(v):
     pf = pf_of(v, 0.05)
     parts = []
     for i in range(3):
-        s = pf * (1.0 + 0.09 * i)
-        parts.append((whoosh(0.15, 1400 * s, 5600 * s, 1.3, 0.3), 0.055 * i, 0.5))
-        parts.append((dsp.modal(520 * s, 0.1, [1, 2.0, 3.0], [1, 0.35, 0.15], [0.04, 0.02, 0.01]), 0.055 * i, 0.22))
-        parts.append((dsp.click(0.006, 3600), 0.055 * i, 0.4))
-    return dsp.reverb(stack(*parts), 0.25, 0.12)
+        s = pf * (1.0 + 0.08 * i)
+        parts.append((whoosh(0.14, 1600 * s, 6400 * s, 1.4, 0.3), 0.05 * i, 0.5))
+        parts.append((thud(210 * s, 120 * s, 0.05, 0.018), 0.05 * i, 0.4))
+        parts.append((snap(0.01, 2800, 7000, 0.003), 0.05 * i, 0.4))
+    return dsp.reverb(stack(*parts), 0.22, 0.09)
 
 
 def throw_pierce(v):
     pf = pf_of(v, 0.06)
-    n = n_of(0.45)
-    t = np.arange(n) / SR
-    f = dsp.glide(900 * pf, 2500 * pf, 0.45, 1.6) * (1.0 + 0.012 * np.sin(2 * np.pi * 14 * t))
-    zing = dsp.osc(f, shape="sine") * dsp.ad_env(n, 0.01, 0.12) * 0.5
-    ring = dsp.modal(1500 * pf, 0.4, [1.0, 1.58, 2.37], [1, 0.5, 0.3], [0.16, 0.12, 0.08]) * 0.35
-    air = dsp.hp(whoosh(0.4, 3200, 9000, 1.2, 0.3), 2500) * 0.5
-    return dsp.reverb(stack((zing, 0, 0.8), (ring, 0.01, 0.6), (air, 0, 0.7), (dsp.click(0.008, 5000), 0, 0.4)), 0.3, 0.14)
+    n = n_of(0.4)
+    f = dsp.glide(1000 * pf, 3000 * pf, 0.4, 1.8)
+    zing = dsp.osc(f, shape="sine") * dsp.ad_env(n, 0.012, 0.11) * 0.35
+    air = dsp.hp(whoosh(0.36, 3200, 9500, 1.1, 0.35), 2600) * 0.6
+    return dsp.reverb(stack((zing, 0, 0.8), (air, 0, 0.8), (snap(0.01, 4000, 9000, 0.003), 0, 0.5), (thud(160, 90, 0.05, 0.02), 0, 0.4)), 0.28, 0.1)
 
 
 # ------------------------------------------------------------------ impacts (couche « hache »)
 def hit_rapid(v):
     pf = pf_of(v, 0.1)
-    wood = dsp.modal(520 * pf, 0.16, [1, 2.76, 5.4], [1, 0.55, 0.25], [0.06, 0.035, 0.018])
-    sub = dsp.osc(dsp.glide(150, 90, 0.06), shape="sine") * dsp.exp_env(n_of(0.06), 0.02)
-    return stack((wood, 0, 0.8), (dsp.click(0.01, 2600 * pf), 0, 0.7), (sub, 0, 0.6), (dsp.crackle(0.07, 1200, 3000), 0.004, 0.25))
+    body = thud(170 * pf, 85, 0.07, 0.025)
+    thwack = dsp.bp(dsp.noise(0.08), 600 * pf, 3200 * pf) * dsp.exp_env(n_of(0.08), 0.022)
+    return stack((snap(0.012, 2200, 6000, 0.004), 0, 0.8), (thwack, 0, 0.8), (body, 0, 0.8), (metal(2400 * pf, 0.08, 0.025, (1, 2.4), (1, 0.4)), 0, 0.2))
 
 
 def hit_heavy(v):
     pf = pf_of(v, 0.07)
-    sub = dsp.osc(dsp.glide(115 * pf, 42 * pf, 0.4, 3.5), shape="sine") * dsp.exp_env(n_of(0.4), 0.12)
-    body = dsp.modal(185 * pf, 0.3, [1, 2.4, 4.4], [1, 0.6, 0.3], [0.12, 0.07, 0.04])
-    crack = dsp.bp(dsp.noise(0.1), 800, 5000) * dsp.exp_env(n_of(0.1), 0.022)
-    crunch = dsp.crackle(0.16, 1500, 2200) * dsp.exp_env(n_of(0.16), 0.07)
-    x = stack((sub, 0, 1.0), (body, 0, 0.8), (crack, 0, 0.9), (crunch, 0.005, 0.55))
-    return dsp.reverb(x, 0.4, 0.16)
+    sub = thud(120 * pf, 38 * pf, 0.45, 0.14)
+    crack = dsp.bp(dsp.noise(0.12), 700, 5000) * dsp.exp_env(n_of(0.12), 0.026)
+    debris = dsp.crackle(0.2, 1800, 2400) * dsp.exp_env(n_of(0.2), 0.08)
+    thump = dsp.lp(dsp.noise(0.16), 400) * dsp.exp_env(n_of(0.16), 0.05)
+    return dsp.reverb(stack((sub, 0, 1.0), (crack, 0, 0.9), (thump, 0, 0.7), (debris, 0.006, 0.5)), 0.38, 0.14)
 
 
 def hit_multi(v):
     pf = pf_of(v, 0.1)
-    tik = dsp.modal(900 * pf, 0.1, [1, 2.6, 4.9], [1, 0.4, 0.2], [0.03, 0.018, 0.01])
-    return stack((tik, 0, 0.7), (dsp.click(0.008, 3800 * pf), 0, 0.7), (dsp.osc(dsp.glide(200, 120, 0.04), shape="sine") * dsp.exp_env(n_of(0.04), 0.015), 0, 0.4))
+    return stack((snap(0.01, 2500, 7000, 0.003), 0, 0.8), (thud(220 * pf, 120, 0.045, 0.016), 0, 0.6), (metal(1800 * pf, 0.07, 0.02, (1, 2.5), (1, 0.4)), 0, 0.25))
 
 
 def hit_pierce(v):
     pf = pf_of(v, 0.08)
-    ring = dsp.modal(2100 * pf, 0.35, [1, 1.62, 2.48, 3.4], [1, 0.7, 0.5, 0.3], [0.2, 0.14, 0.1, 0.06])
-    return dsp.reverb(stack((ring, 0, 0.7), (dsp.click(0.01, 5200), 0, 0.8), (dsp.crackle(0.08, 1500, 4500), 0, 0.3)), 0.3, 0.14)
+    slice_ = dsp.hp(dsp.noise(0.1), 2800) * dsp.exp_env(n_of(0.1), 0.03)
+    return dsp.reverb(stack((slice_, 0, 0.8), (metal(2600 * pf, 0.3, 0.12), 0, 0.4), (snap(0.01, 4500, 9000, 0.003), 0, 0.6), (thud(140, 80, 0.05, 0.02), 0, 0.4)), 0.25, 0.1)
 
 
 # ------------------------------------------------------------------ matières des ennemis
 def mat_shell(v):
     pf = pf_of(v, 0.07)
-    k = dsp.modal(1800 * pf, 0.08, [1, 1.7, 2.9], [1, 0.7, 0.4], [0.018, 0.012, 0.008])
-    return stack((k, 0, 0.6), (dsp.crackle(0.1, 1800, 3500), 0, 0.6), (dsp.osc(300 * pf, 0.04) * dsp.exp_env(n_of(0.04), 0.012), 0, 0.5))
+    return stack((snap(0.015, 2000 * pf, 6500, 0.005), 0, 0.7), (dsp.crackle(0.1, 1800, 3500), 0, 0.5), (thud(260 * pf, 140, 0.05, 0.016), 0, 0.5))
 
 
 def mat_squish(v):
-    pf = pf_of(v, 0.1)
-    pop = dsp.osc(dsp.glide(620 * pf, 230 * pf, 0.09), shape="sine") * dsp.exp_env(n_of(0.09), 0.03)
-    wet = dsp.bp(dsp.noise(0.1), 900, 2600) * dsp.exp_env(n_of(0.1), 0.025)
-    return stack((pop, 0, 0.8), (wet, 0.004, 0.45))
+    pf = pf_of(v, 0.07)
+    wet = dsp.bp(dsp.noise(0.12), 250 * pf, 1400) * dsp.exp_env(n_of(0.12), 0.035)
+    return stack((wet, 0, 0.8), (thud(140 * pf, 70, 0.08, 0.03), 0, 0.7), (snap(0.01, 900, 2800, 0.004), 0, 0.3))
 
 
 def mat_hollow(v):
     pf = pf_of(v, 0.06)
-    d = dsp.modal(205 * pf, 0.3, [1, 2.4, 3.9], [1, 0.45, 0.2], [0.12, 0.07, 0.04])
-    return dsp.reverb(stack((d, 0, 0.9), (dsp.click(0.01, 1300), 0, 0.5)), 0.3, 0.12)
+    return stack((thud(210 * pf, 120 * pf, 0.1, 0.04), 0, 0.8), (dsp.bp(dsp.noise(0.06), 500, 1800) * dsp.exp_env(n_of(0.06), 0.014), 0, 0.5), (snap(0.008, 1500, 4000, 0.003), 0, 0.3))
 
 
 def mat_bubble(v):
     pf = pf_of(v, 0.08)
-    n = n_of(0.22)
-    t = np.arange(n) / SR
-    f = dsp.glide(280 * pf, 720 * pf, 0.22, 1.5) * (1.0 + 0.03 * np.sin(2 * np.pi * 16 * t))
-    boing = dsp.osc(f, shape="sine") * dsp.exp_env(n, 0.09)
-    pop = dsp.osc(dsp.glide(900, 300, 0.03), shape="sine") * dsp.exp_env(n_of(0.03), 0.01)
-    return stack((boing, 0, 0.8), (pop, 0.16, 0.5))
+    return stack((thud(320 * pf, 150, 0.07, 0.025), 0, 0.7), (dsp.bp(dsp.noise(0.09), 800, 2800) * dsp.exp_env(n_of(0.09), 0.022), 0, 0.5), (snap(0.008, 2000, 5000, 0.003), 0, 0.3))
 
 
 def mat_kraken(v):
     pf = pf_of(v, 0.05)
-    slap = dsp.lp(dsp.noise(0.12), 900) * dsp.exp_env(n_of(0.12), 0.05)
-    thump = dsp.osc(dsp.glide(210 * pf, 85 * pf, 0.2), shape="sine") * dsp.exp_env(n_of(0.2), 0.07)
-    squelch = dsp.sweep_filter(dsp.noise(0.2), 900, 150, "band", 1.3) * dsp.exp_env(n_of(0.2), 0.08)
-    return dsp.reverb(stack((slap, 0, 0.9), (thump, 0, 0.9), (squelch, 0.02, 0.5)), 0.4, 0.14)
+    return dsp.reverb(stack((thud(120 * pf, 55, 0.3, 0.1), 0, 0.9), (dsp.bp(dsp.noise(0.2), 200, 1200) * dsp.exp_env(n_of(0.2), 0.06), 0, 0.7), (snap(0.012, 800, 3000, 0.005), 0, 0.5)), 0.4, 0.12)
 
 
-# ------------------------------------------------------------------ éliminations
+# ------------------------------------------------------------------ morts
 def die_shell(v):
-    pf = pf_of(v, 0.08)
-    crunch = dsp.crackle(0.16, 2200, 3000) * dsp.exp_env(n_of(0.16), 0.06)
-    pop = dsp.osc(dsp.glide(720 * pf, 180 * pf, 0.06), shape="sine") * dsp.exp_env(n_of(0.06), 0.02)
-    sp = dsp.sparkle(0.4, PENTA, 22, 0.35)
-    return dsp.reverb(stack((crunch, 0, 0.8), (pop, 0, 0.8), (sp, 0.03, 0.5)), 0.35, 0.16)
+    pf = pf_of(v, 0.07)
+    shatter = dsp.crackle(0.4, 1500, 3000) * dsp.exp_env(n_of(0.4), 0.14)
+    return dsp.reverb(stack((snap(0.02, 1500, 7000, 0.008), 0, 0.8), (thud(180 * pf, 60, 0.25, 0.08), 0, 0.9), (shatter, 0.01, 0.8), (metal(1500 * pf, 0.3, 0.1, (1, 1.8, 3.1), (1, 0.5, 0.3)), 0.02, 0.18)), 0.35, 0.12)
 
 
 def die_squish(v):
-    pf = pf_of(v, 0.08)
-    sq = dsp.osc(dsp.glide(520 * pf, 1500 * pf, 0.08, 1.5), shape="sine") * dsp.exp_env(n_of(0.08), 0.05)
-    pop = dsp.osc(dsp.glide(900, 250, 0.05), shape="sine") * dsp.exp_env(n_of(0.05), 0.016)
-    parts = [(sq, 0, 0.7), (pop, 0.075, 0.8), (dsp.sparkle(0.35, PENTA, 18, 0.3), 0.06, 0.5)]
-    for i, (a, b) in enumerate(((300, 700), (380, 900), (450, 1100))):
-        parts.append((dsp.osc(dsp.glide(a * pf, b * pf, 0.05), shape="sine") * dsp.exp_env(n_of(0.05), 0.02), 0.11 + 0.05 * i, 0.3))
-    return dsp.reverb(stack(*parts), 0.3, 0.14)
+    pf = pf_of(v, 0.07)
+    splat = dsp.bp(dsp.noise(0.3), 220, 2200) * dsp.exp_env(n_of(0.3), 0.07)
+    return dsp.reverb(stack((thud(150 * pf, 50, 0.25, 0.09), 0, 0.9), (splat, 0, 0.8), (snap(0.015, 1000, 3500, 0.006), 0, 0.5), (dsp.crackle(0.15, 700, 1800), 0.03, 0.3)), 0.3, 0.1)
 
 
 def die_hollow(v):
-    pf = pf_of(v, 0.06)
-    dong = dsp.modal(130 * pf, 0.5, [1, 2.4, 3.9, 5.5], [1, 0.5, 0.3, 0.15], [0.2, 0.1, 0.06, 0.03])
-    crack = dsp.crackle(0.18, 1100, 2400) * dsp.exp_env(n_of(0.18), 0.07)
-    return dsp.reverb(stack((dong, 0, 0.9), (crack, 0.02, 0.75), (dsp.sparkle(0.4, PENTA, 18, 0.3), 0.08, 0.5)), 0.45, 0.18)
+    pf = pf_of(v, 0.05)
+    n = n_of(0.5)
+    deflate = dsp.sweep_filter(dsp.noise(0.5), 5200, 500, "low") * dsp.exp_env(n, 0.17) * 0.5
+    return dsp.reverb(stack((snap(0.012, 2000, 6000, 0.004), 0, 0.8), (thud(260 * pf, 80, 0.2, 0.06), 0, 0.9), (deflate, 0.01, 0.8)), 0.3, 0.1)
 
 
 def die_bubble(v):
     pf = pf_of(v, 0.07)
-    n = n_of(0.3)
-    deflate = dsp.sweep_filter(dsp.noise(0.3), 2500, 400, "band", 1.5) * dsp.swell_env(n, 0.15, 1.2, 1.4)
-    tone = dsp.osc(dsp.glide(650 * pf, 180 * pf, 0.3, 1.4), shape="sine") * dsp.exp_env(n, 0.12)
-    pop = dsp.osc(dsp.glide(1100, 300, 0.035), shape="sine") * dsp.exp_env(n_of(0.035), 0.012)
-    return dsp.reverb(stack((deflate, 0, 0.7), (tone, 0, 0.55), (pop, 0.31, 0.8), (dsp.sparkle(0.4, PENTA, 18, 0.3), 0.3, 0.45)), 0.35, 0.15)
+    return dsp.reverb(stack((snap(0.012, 1800, 6000, 0.004), 0, 0.8), (thud(300 * pf, 90, 0.18, 0.05), 0, 0.9), (dsp.hp(dsp.noise(0.3), 2500) * dsp.exp_env(n_of(0.3), 0.06), 0.005, 0.5)), 0.3, 0.1)
 
 
 def die_kraken(v):
-    sub = dsp.osc(dsp.glide(90, 28, 1.6, 2.5), shape="sine") * dsp.exp_env(n_of(1.6), 0.5)
-    f = dsp.glide(95, 35, 1.8, 1.8)
-    groan = dsp.lp(dsp.osc(f, shape="saw"), 420) * dsp.swell_env(n_of(1.8), 0.12, 1.2, 1.1)
-    splash = dsp.sweep_filter(dsp.noise(1.2), 5000, 500, "low") * dsp.exp_env(n_of(1.2), 0.35)
-    shimmer = dsp.hp(dsp.noise(1.4), 6500) * dsp.swell_env(n_of(1.4), 0.2, 1.4, 1.3) * 0.18
-    crack = dsp.bp(dsp.noise(0.12), 700, 4500) * dsp.exp_env(n_of(0.12), 0.03)
-    x = stack((sub, 0, 1.0), (groan, 0.02, 0.8), (splash, 0.0, 0.5), (shimmer, 0.15, 0.6), (crack, 0, 0.8),
-              (dsp.sparkle(1.2, PENTA, 14, 0.35), 0.5, 0.6))
-    return dsp.reverb(x, 1.3, 0.3)
+    boom = thud(95, 30, 1.2, 0.35, 3.0)
+    roar = formant(70, 1.4, [(300, 0.4, 1.0), (850, 0.3, 0.6)], 0.01, 0.2) * dsp.swell_env(n_of(1.4), 0.15, 1.2, 1.4)
+    debris = dsp.crackle(1.0, 1400, 2200) * dsp.exp_env(n_of(1.0), 0.35)
+    water = dsp.bp(dsp.noise(1.2), 300, 2500) * dsp.swell_env(n_of(1.2), 0.25, 1.5, 1.8) * 0.5
+    return dsp.reverb(stack((boom, 0, 1.0), (roar, 0, 0.6), (snap(0.03, 600, 4000, 0.01), 0, 0.8), (debris, 0.03, 0.6), (water, 0.1, 0.5)), 0.9, 0.2)
 
 
-# ------------------------------------------------------------------ zone / boss
+# ------------------------------------------------------------------ zones, boss
 def splash_heavy(v):
     pf = pf_of(v, 0.05)
-    sub = dsp.osc(dsp.glide(95 * pf, 28 * pf, 0.9, 3), shape="sine") * dsp.exp_env(n_of(0.9), 0.28)
-    crack = dsp.bp(dsp.noise(0.14), 900, 4500) * dsp.exp_env(n_of(0.14), 0.02)
-    rumble = dsp.lp(dsp.noise(1.0, "brown"), 220) * dsp.exp_env(n_of(1.0), 0.33)
-    sand = (dsp.hp(dsp.noise(0.6), 2200) * dsp.ad_env(n_of(0.6), 0.01, 0.16) * 0.4
-            + dsp.crackle(0.6, 1400, 3500) * dsp.exp_env(n_of(0.6), 0.2) * 0.55)
-    wood = dsp.modal(150 * pf, 0.3, [1, 2.4, 4.9], [1, 0.6, 0.3], [0.1, 0.06, 0.03])
-    return dsp.reverb(stack((sub, 0, 1.0), (crack, 0, 0.9), (rumble, 0, 0.8), (sand, 0.02, 0.6), (wood, 0, 0.5)), 0.9, 0.3)
+    boom = thud(100 * pf, 34, 0.7, 0.2)
+    wave = whoosh(0.6, 200, 3000, 1.6, 0.18, 0.9) * 0.9
+    return dsp.reverb(stack((boom, 0, 1.0), (dsp.bp(dsp.noise(0.2), 500, 4500) * dsp.exp_env(n_of(0.2), 0.04), 0, 0.8), (wave, 0.01, 0.55), (dsp.crackle(0.3, 1500, 2500) * dsp.exp_env(n_of(0.3), 0.1), 0.03, 0.4)), 0.6, 0.16)
 
 
 def boss_slam(v):
-    big = splash_heavy(0)
-    sub = dsp.osc(dsp.glide(70, 22, 1.4, 3), shape="sine") * dsp.exp_env(n_of(1.4), 0.4)
-    debris = dsp.crackle(1.0, 1800, 2000) * dsp.exp_env(n_of(1.0), 0.3)
-    return dsp.reverb(stack((big, 0, 0.9), (sub, 0, 1.0), (debris, 0.1, 0.6)), 1.2, 0.3)
+    boom = thud(85, 26, 1.4, 0.4, 3.0)
+    crack = dsp.bp(dsp.noise(0.25), 400, 6000) * dsp.exp_env(n_of(0.25), 0.05)
+    rumble = dsp.lp(dsp.noise(1.5, "brown"), 150) * dsp.exp_env(n_of(1.5), 0.5)
+    debris = dsp.crackle(1.0, 1200, 2500) * dsp.exp_env(n_of(1.0), 0.3)
+    return dsp.reverb(stack((boom, 0, 1.0), (crack, 0, 0.9), (rumble, 0, 0.7), (debris, 0.04, 0.5), (I.taiko(48, 0.8), 0, 0.5)), 1.0, 0.2)
 
 
 def boss_roar(v):
-    dur = 1.5
-    n = n_of(dur)
+    n = n_of(1.6)
+    sweep = dsp.glide(95, 60, 1.6, 1.5)
     t = np.arange(n) / SR
-    f = dsp.glide(88, 54, dur, 1.4) * (1.0 + 0.02 * np.sin(2 * np.pi * 5 * t))
-    am = 0.62 + 0.38 * np.sin(2 * np.pi * 26 * t)
-    saw = dsp.osc(f, shape="saw")
-    formant = dsp.sweep_filter(saw, 450, 950, "band", 1.3) * 1.2 + dsp.lp(saw, 600) * 0.7
-    growl = dsp.lp(dsp.noise(dur), 1100) * 0.25
-    x = (formant + growl) * am * dsp.swell_env(n, 0.3, 1.5, 1.2)
-    return dsp.reverb(x, 0.9, 0.22)
+    src = dsp.osc(sweep * (1.0 + 0.02 * np.sin(2 * np.pi * 8 * t)), shape="saw")
+    out = np.zeros(n)
+    for fc, bw, g in ((280, 0.35, 1.0), (760, 0.3, 0.8), (1900, 0.3, 0.3)):
+        out += dsp.bp(src, fc * (1 - bw), fc * (1 + bw)) * g
+    out = dsp.sat(out + dsp.bp(dsp.noise(1.6), 500, 2500) * 0.25, 2.2) * dsp.swell_env(n, 0.18, 1.3, 1.3)
+    return dsp.reverb(out, 0.8, 0.2)
 
 
 def boss_warning(v):
-    dur = 2.4
-    n = n_of(dur)
-    drone = dsp.osc(55.0, dur, "saw") * 0.6 + dsp.osc(82.4, dur, "saw") * 0.4
-    drone = dsp.sweep_filter(drone, 160, 900, "low", curve=0.8) * dsp.swell_env(n, 0.8, 1.5, 1.2)
-    riser = dsp.sweep_filter(dsp.noise(dur), 300, 6500, "band", 1.6, curve=1.2) * (np.linspace(0, 1, n) ** 2) * 0.5
-    parts = [(drone, 0, 0.9), (riser, 0, 0.7)]
-    for tt in (0.2, 0.55, 1.15, 1.5):
-        parts.append((dsp.osc(dsp.glide(85, 42, 0.18, 3), shape="sine") * dsp.exp_env(n_of(0.18), 0.07), tt, 1.0))
-    return dsp.reverb(stack(*parts), 1.2, 0.25)
+    parts = []
+    for i in range(3):
+        parts.append((I.brass_stab(H("A3"), 0.28, 0.9), 0.38 * i, 0.55))
+        parts.append((I.brass_stab(H("D#4"), 0.28, 0.85), 0.38 * i, 0.45))
+        parts.append((I.taiko(70.0, 0.9), 0.38 * i, 0.5))
+    parts.append((I.riser(1.2, 0.7), 0.0, 0.3))
+    return dsp.reverb(stack(*parts), 0.6, 0.18)
 
 
 def boss_charge(v):
-    dur = 0.9
-    n = n_of(dur)
-    t = np.arange(n) / SR
-    f = dsp.glide(90, 520, dur, 0.7)
-    x = dsp.sweep_filter(dsp.osc(f, shape="saw"), 250, 2200, "low")
-    x *= 0.6 + 0.4 * np.sin(2 * np.pi * (20 + 20 * t / dur) * t)
-    x *= dsp.swell_env(n, 0.9, 1.4, 1.0)
-    return dsp.reverb(x, 0.4, 0.15)
+    n = n_of(0.9)
+    rise = whoosh(0.9, 200, 4500, 1.3, 0.7, 1.1)
+    eng = dsp.osc(dsp.glide(60, 130, 0.9, 1.8), shape="saw") * dsp.swell_env(n, 0.8, 1.4, 1.3) * 0.3
+    return dsp.reverb(stack((rise, 0, 0.9), (dsp.lp(eng, 700), 0, 0.8), (thud(100, 50, 0.3, 0.1), 0.0, 0.5)), 0.4, 0.1)
 
 
 def boss_phase(v):
-    return dsp.reverb(stack((boss_roar(0)[: n_of(1.0)], 0, 0.9),
-                            (dsp.osc(dsp.glide(80, 30, 0.8, 3), shape="sine") * dsp.exp_env(n_of(0.8), 0.25), 0, 1.0)), 0.9, 0.25)
+    return dsp.reverb(stack((thud(100, 32, 1.0, 0.3), 0, 1.0), (I.crash(0.9), 0.0, 0.5), (I.riser(0.5, 0.6), 0, 0.4), (I.taiko(60, 0.9), 0.0, 0.7), (I.brass_stab(H("D3"), 0.5, 0.9), 0.04, 0.5)), 0.8, 0.18)
 
 
 def boss_defeated(v):
-    boom = splash_heavy(0)
-    parts = [(boom, 0, 1.0), (die_kraken(0), 0.0, 0.6)]
-    arp = [dsp.hz(x) for x in ("C5", "E5", "G5", "C6", "E6", "G6", "C7")]
-    for i, f in enumerate(arp):
-        parts.append((I.marimba(f, 0.7, 0.9), 0.9 + 0.075 * i, 0.55))
-    parts.append((I.steel(dsp.hz("C5"), 1.6, 0.9), 1.55, 0.5))
-    parts.append((I.steel(dsp.hz("G5"), 1.6, 0.9), 1.55, 0.35))
-    parts.append((dsp.hp(dsp.noise(1.6), 6000) * dsp.swell_env(n_of(1.6), 0.25, 1.3, 1.5) * 0.12, 1.0, 1.0))
-    parts.append((dsp.sparkle(1.8, PENTA, 24, 0.5), 1.0, 0.6))
-    return dsp.reverb(stack(*parts), 1.4, 0.28)
+    parts = [(thud(90, 30, 1.2, 0.35), 0, 1.0), (I.crash(1.0), 0.0, 0.6), (I.taiko(60, 1.0), 0.0, 0.7)]
+    for i, nname in enumerate(("D4", "F4", "A4", "D5")):
+        parts.append((I.brass_stab(H(nname), 0.6, 0.9), 0.35 + 0.16 * i, 0.5))
+        parts.append((I.strings_long([H(nname)], 1.2, 0.6, 0.1, 0.8), 0.35 + 0.16 * i, 0.3))
+    parts.append((I.brass_stab(H("D5"), 1.6, 1.0), 1.05, 0.65))
+    parts.append((I.glock(H("D6"), 1.6, 0.6), 1.05, 0.3))
+    return dsp.reverb(stack(*parts), 1.1, 0.22)
 
 
-# ------------------------------------------------------------------ vie des ennemis
-def enemy_spawn(v):
+# ------------------------------------------------------------------ apparitions, combat
+def spawn_water(v):
+    """Un ennemi surgit de l'eau : éclaboussure montante + gouttes + petit grondement."""
     pf = pf_of(v, 0.1)
-    n = n_of(0.12)
-    b1 = dsp.osc(dsp.glide(280 * pf, 760 * pf, 0.12, 1.5), shape="sine") * dsp.ad_env(n, 0.005, 0.05)
-    b2 = dsp.osc(dsp.glide(400 * pf, 1000 * pf, 0.08, 1.5), shape="sine") * dsp.ad_env(n_of(0.08), 0.004, 0.03)
-    puff = dsp.hp(dsp.noise(0.12), 1500) * dsp.exp_env(n_of(0.12), 0.04) * 0.4
-    return stack((b1, 0, 0.8), (b2, 0.07, 0.5), (puff, 0.02, 0.5))
+    splash = whoosh(0.4, 500 * pf, 4500, 1.4, 0.3, 0.9) * 0.9
+    drops = dsp.crackle(0.35, 900, 5200) * dsp.exp_env(n_of(0.35), 0.12)
+    gloop = thud(240 * pf, 90, 0.18, 0.06) * 0.7
+    return dsp.reverb(stack((splash, 0, 0.8), (drops, 0.03, 0.55), (gloop, 0.02, 0.8), (snap(0.02, 1500, 6000, 0.008), 0, 0.5)), 0.3, 0.1)
+
+
+def spawn_sand(v):
+    """Un ennemi sort du sable : éclatement sourd + sable qui retombe + cailloux."""
+    pf = pf_of(v, 0.1)
+    burst = dsp.bp(dsp.noise(0.28), 300 * pf, 3200) * dsp.exp_env(n_of(0.28), 0.07)
+    grains = dsp.crackle(0.4, 1300, 4200) * dsp.exp_env(n_of(0.4), 0.14)
+    return stack((thud(130 * pf, 60, 0.2, 0.07), 0, 0.9), (burst, 0, 0.8), (grains, 0.03, 0.55), (snap(0.012, 900, 3000, 0.005), 0, 0.4))
 
 
 def enemy_windup(v):
     pf = pf_of(v, 0.1)
-    dur = 0.3
-    n = n_of(dur)
-    t = np.arange(n) / SR
-    f = dsp.glide(95 * pf, 150 * pf, dur, 1.0)
-    x = dsp.lp(dsp.osc(f, shape="saw"), 650) * (0.55 + 0.45 * np.sin(2 * np.pi * 28 * t)) * dsp.swell_env(n, 0.8, 1.5, 1.0)
-    return x
+    n = n_of(0.3)
+    return stack((whoosh(0.3, 400 * pf, 1800 * pf, 1.4, 0.8), 0, 0.5), (dsp.osc(dsp.glide(120 * pf, 200 * pf, 0.3, 1.5), shape="saw") * dsp.swell_env(n, 0.85, 1.6, 1.2) * 0.12, 0, 0.5))
 
 
 def combat_activate(v):
-    tick = I.marimba(dsp.hz("E6"), 0.2, 0.5)
-    return stack((whoosh(0.28, 800, 3500, 1.2, 0.5), 0, 0.55), (tick, 0.1, 0.3), (dsp.click(0.008, 1400), 0, 0.5))
+    n = n_of(0.5)
+    pulse = thud(110, 70, 0.25, 0.09)
+    rise = whoosh(0.45, 300, 3500, 1.3, 0.75, 1.1) * 0.6
+    return dsp.reverb(stack((pulse, 0, 0.7), (rise, 0, 0.5), (metal(900, 0.3, 0.12, (1, 1.5, 2.0), (1, 0.5, 0.3)), 0.02, 0.15)), 0.35, 0.1)
 
 
-# ------------------------------------------------------------------ pièces
+# ------------------------------------------------------------------ pièces, progression
 def coin_spawn(v):
-    f = dsp.hz(["G6", "E6", "A6"][v % 3])
-    return dsp.fm_bell(f, 0.18, 3.5, 1.5, 0.06, 0.03)
+    pf = pf_of(v, 0.06)
+    return stack((metal(2800 * pf, 0.07, 0.02, (1, 2.4), (1, 0.4)), 0, 0.4), (snap(0.006, 3500, 8000, 0.002), 0, 0.3))
 
 
-def coin_get(i):
-    f = COIN_NOTES[i % len(COIN_NOTES)]
-    main = dsp.fm_bell(f, 0.45, 3.5, 2.4, 0.2, 0.08)
-    over = dsp.fm_bell(f * 2, 0.3, 3.5, 1.6, 0.1, 0.05)
-    return stack((main, 0, 0.8), (over, 0.004, 0.3), (dsp.click(0.004, 6500), 0, 0.3))
+COIN_STEPS = [0, 2, 4, 7, 9, 12, 14, 16]
+
+
+def coin_get(v):
+    f = H("D6") * 2.0 ** (COIN_STEPS[v % 8] / 12.0)
+    return dsp.reverb(stack((metal(f, 0.4, 0.14, (1.0, 2.0, 3.01, 4.2), (1.0, 0.45, 0.25, 0.15)), 0, 0.8), (snap(0.008, 4000, 9000, 0.002), 0, 0.5), (metal(f * 1.5, 0.2, 0.07, (1, 2.0), (1, 0.4)), 0.03, 0.3)), 0.25, 0.08)
 
 
 def multi_kill(v):
-    parts = []
-    for i, nname in enumerate(("C5", "E5", "G5", "C6", "E6")):
-        parts.append((I.marimba(dsp.hz(nname), 0.6, 0.9), 0.06 * i, 0.7))
-    parts.append((dsp.hp(dsp.noise(0.9), 5000) * dsp.swell_env(n_of(0.9), 0.3, 1.3, 1.5) * 0.12, 0.1, 1.0))
-    parts.append((dsp.sparkle(0.9, PENTA, 26, 0.5), 0.2, 0.6))
-    return dsp.reverb(stack(*parts), 0.8, 0.24)
+    parts = [(whoosh(0.5, 400, 5000, 1.4, 0.5), 0, 0.6), (I.taiko(78.0, 0.9), 0.0, 0.6), (I.crash(0.7), 0.1, 0.3)]
+    for i, nname in enumerate(("D5", "F5", "A5", "D6")):
+        parts.append((I.glock(H(nname), 0.7, 0.8), 0.18 + 0.07 * i, 0.4))
+    return dsp.reverb(stack(*parts), 0.6, 0.15)
 
 
-# ------------------------------------------------------------------ jingles
 def wave_start(v):
-    parts = [(I.horn(dsp.hz("C4"), 1.3, 0.8), 0.0, 0.8), (I.horn(dsp.hz("G4"), 1.3, 0.8), 0.02, 0.45)]
-    for i, nname in enumerate(("G5", "C6", "E6")):
-        parts.append((I.marimba(dsp.hz(nname), 0.6, 0.8), 0.45 + 0.1 * i, 0.5))
-    for i in range(8):
-        parts.append((I.shaker(0.5 + 0.05 * i), 0.1 + 0.06 * i, 0.5))
-    return dsp.reverb(stack(*parts), 0.9, 0.25)
+    parts = [(I.taiko(66.0, 1.0), 0.0, 0.7), (I.taiko(88.0, 0.9), 0.22, 0.5)]
+    for k, nname in enumerate(("D4", "A4")):
+        parts.append((I.brass_stab(H(nname), 0.45, 0.9), 0.44 if k == 0 else 0.44, 0.5))
+    parts.append((I.brass_stab(H("F4"), 0.45, 0.9), 0.44, 0.4))
+    parts.append((I.crash(0.8), 0.44, 0.3))
+    return dsp.reverb(stack(*parts), 0.7, 0.16)
 
 
 def wave_clear(v):
     parts = []
-    for i, nname in enumerate(("C5", "E5", "G5", "C6")):
-        parts.append((I.marimba(dsp.hz(nname), 0.7, 0.9), 0.09 * i, 0.65))
-    for nname in ("C5", "G5", "E6"):
-        parts.append((I.steel(dsp.hz(nname), 1.2, 0.9), 0.4, 0.35))
-    parts.append((I.shaker(0.8), 0.4, 0.6))
-    parts.append((dsp.sparkle(0.8, PENTA, 20, 0.4), 0.4, 0.5))
-    return dsp.reverb(stack(*parts), 0.8, 0.24)
+    for i, nname in enumerate(("D4", "F4", "A4", "D5")):
+        parts.append((I.brass_stab(H(nname), 0.3, 0.85), 0.11 * i, 0.5))
+    parts.append((I.brass_stab(H("D5"), 0.9, 0.9), 0.46, 0.5))
+    parts.append((I.brass_stab(H("A4"), 0.9, 0.8), 0.46, 0.4))
+    parts.append((I.strings_long([H("D4"), H("A4"), H("D5")], 1.0, 0.6, 0.05, 0.7), 0.4, 0.35))
+    parts.append((I.glock(H("A6"), 1.2, 0.6), 0.5, 0.3))
+    return dsp.reverb(stack(*parts), 0.8, 0.18)
 
 
 def game_over(v):
-    parts = []
-    for i, nname in enumerate(("G5", "E5", "C5")):
-        parts.append((I.marimba(dsp.hz(nname), 0.9, 0.8), 0.25 * i, 0.7))
-    f = dsp.glide(196, 130, 1.0, 1.2)
-    womp = dsp.lp(dsp.osc(f, shape="saw"), 520) * dsp.swell_env(n_of(1.0), 0.2, 1.4, 1.2)
-    parts.append((womp, 0.75, 0.8))
-    parts.append((I.pad([dsp.hz("C3"), dsp.hz("G3"), dsp.hz("Eb4")], 1.6, 0.5), 0.7, 0.4))
-    return dsp.reverb(stack(*parts), 1.1, 0.26)
+    parts = [(I.taiko(55.0, 1.0), 0.0, 0.8), (thud(90, 30, 1.2, 0.35), 0.0, 0.7)]
+    for i, nname in enumerate(("A3", "F3", "D3")):
+        parts.append((I.strings_long([H(nname), H(nname) * 1.5], 1.3, 0.6, 0.1, 0.9), 0.3 * i + 0.1, 0.4))
+        parts.append((I.brass_stab(H(nname), 0.7, 0.8), 0.3 * i + 0.1, 0.3))
+    return dsp.reverb(stack(*parts), 1.2, 0.24)
 
 
 def turret_upgrade(v):
-    parts = []
-    for i, nname in enumerate(("C5", "E5", "G5", "C6")):
-        parts.append((I.marimba(dsp.hz(nname), 0.6, 0.9), 0.045 * i, 0.65))
-    parts.append((whoosh(0.7, 500, 6000, 1.6, 0.7, 1.2), 0, 0.35))
-    parts.append((dsp.fm_bell(dsp.hz("C7"), 0.5, 3.5, 2.0, 0.25, 0.08), 0.22, 0.45))
-    parts.append((dsp.fm_bell(dsp.hz("E7"), 0.5, 3.5, 2.0, 0.25, 0.08), 0.3, 0.35))
-    parts.append((dsp.sparkle(0.8, PENTA, 22, 0.4), 0.15, 0.5))
-    return dsp.reverb(stack(*parts), 0.7, 0.22)
+    ratchet = stack(*[(snap(0.012, 1800, 6000, 0.004), 0.045 * i, 0.4) for i in range(5)])
+    power = whoosh(0.45, 400, 6500, 1.3, 0.8, 1.2) * 0.7
+    parts = [(ratchet, 0, 0.7), (thud(140, 60, 0.15, 0.05), 0.2, 0.6), (power, 0.05, 0.6)]
+    for i, nname in enumerate(("D5", "A5", "D6")):
+        parts.append((I.glock(H(nname), 0.9, 0.9), 0.22 + 0.07 * i, 0.4))
+        parts.append((I.brass_stab(H(nname) / 2, 0.3, 0.7), 0.22 + 0.07 * i, 0.3))
+    return dsp.reverb(stack(*parts), 0.5, 0.13)
 
 
-# ------------------------------------------------------------------ héros
 def player_hurt(v):
     pf = pf_of(v, 0.07)
-    n = n_of(0.3)
-    t = np.arange(n) / SR
-    f = dsp.glide(900 * pf, 380 * pf, 0.3, 2.0) * (1.0 + 0.03 * np.sin(2 * np.pi * 18 * t))
-    squeak = (dsp.osc(f, shape="sine") + 0.3 * dsp.osc(f * 2, shape="sine")) * dsp.exp_env(n, 0.11)
-    thump = dsp.osc(dsp.glide(130, 58, 0.14), shape="sine") * dsp.exp_env(n_of(0.14), 0.05)
-    slap = dsp.bp(dsp.noise(0.1), 700, 3000) * dsp.exp_env(n_of(0.1), 0.03)
-    return dsp.reverb(stack((squeak, 0.01, 0.65), (thump, 0, 0.95), (slap, 0, 0.5)), 0.3, 0.12)
+    grunt = formant(150 * pf, 0.22, [(520, 0.3, 1.0), (1500, 0.3, 0.5)], 0.0, 0.15) * dsp.ad_env(n_of(0.22), 0.012, 0.09)
+    return stack((thud(150 * pf, 55, 0.22, 0.07), 0, 1.0), (snap(0.02, 700, 3500, 0.008), 0, 0.7), (grunt, 0.0, 0.55), (dsp.lp(dsp.noise(0.2), 600) * dsp.exp_env(n_of(0.2), 0.06), 0, 0.5))
 
 
 def player_death(v):
-    dur = 1.1
-    n = n_of(dur)
-    t = np.arange(n) / SR
-    f = dsp.glide(1400, 180, dur, 1.5) * (1.0 + 0.04 * np.sin(2 * np.pi * 6 * t) * (t / dur))
-    whistle = dsp.osc(f, shape="sine") * (0.7 + 0.3 * np.sin(2 * np.pi * 9 * t)) * dsp.ad_env(n, 0.02, 0.9)
-    thump = dsp.osc(dsp.glide(140, 45, 0.3, 3), shape="sine") * dsp.exp_env(n_of(0.3), 0.1)
-    womp = dsp.lp(dsp.osc(dsp.glide(220, 90, 0.8, 1.2), shape="saw"), 380) * dsp.swell_env(n_of(0.8), 0.2, 1.3, 1.2)
-    parts = [(whistle, 0.0, 0.55), (thump, 0.0, 1.0), (womp, 0.15, 0.7)]
-    for i, (a, b) in enumerate(((700, 250), (520, 200), (420, 160))):
-        parts.append((dsp.osc(dsp.glide(a, b, 0.07), shape="sine") * dsp.exp_env(n_of(0.07), 0.03), 0.9 + 0.1 * i, 0.4))
-    return dsp.reverb(stack(*parts), 0.9, 0.24)
+    n = n_of(1.0)
+    fall = dsp.osc(dsp.glide(330, 90, 1.0, 2.0), shape="saw") * dsp.exp_env(n, 0.3) * 0.25
+    grunt = formant(130, 0.5, [(450, 0.3, 1.0), (1200, 0.3, 0.5)], 0.0, 0.2) * dsp.ad_env(n_of(0.5), 0.02, 0.18)
+    return dsp.reverb(stack((thud(110, 32, 0.9, 0.25), 0, 1.0), (dsp.lp(fall, 1200), 0.05, 0.5), (grunt, 0, 0.6), (I.taiko(52, 0.9), 0.1, 0.5)), 0.7, 0.18)
 
 
 def step_sand(v):
-    centers = [1400, 1900, 1600, 2300]
-    c = centers[v % 4]
-    shuffle = dsp.bp(dsp.noise(0.09), c * 0.5, c * 2.0) * dsp.ad_env(n_of(0.09), 0.004, 0.03)
-    grit = dsp.crackle(0.08, 2200, 2600) * dsp.exp_env(n_of(0.08), 0.03)
-    return stack((shuffle, 0, 0.8), (grit, 0.002, 0.5))
+    pf = pf_of(v, 0.1)
+    return stack((dsp.bp(dsp.noise(0.08), 400 * pf, 2400) * dsp.exp_env(n_of(0.08), 0.02), 0, 0.6), (dsp.crackle(0.1, 1600, 3500) * dsp.exp_env(n_of(0.1), 0.03), 0, 0.5), (thud(120 * pf, 70, 0.05, 0.015), 0, 0.4))
 
 
 # ------------------------------------------------------------------ interface
 def ui_tap(v):
-    n = n_of(0.1)
-    pop = dsp.osc(dsp.glide(720, 430, 0.1, 3), shape="sine") * dsp.exp_env(n, 0.03)
-    return stack((pop, 0, 0.8), (dsp.click(0.006, 2800), 0, 0.3))
+    return stack((snap(0.012, 1800, 5200, 0.0035), 0, 0.8), (thud(900, 520, 0.05, 0.012, 2.0), 0, 0.5), (metal(2100, 0.06, 0.015, (1, 2.4), (1, 0.4)), 0, 0.2))
+
+
+def ui_down(v):
+    return stack((snap(0.01, 900, 3200, 0.003), 0, 0.7), (thud(420, 260, 0.04, 0.01, 2.0), 0, 0.5))
+
+
+def ui_pop(v):
+    n = n_of(0.12)
+    blip = dsp.osc(dsp.glide(420, 880, 0.12, 2.0), shape="sine") * dsp.ad_env(n, 0.004, 0.05)
+    return stack((blip, 0, 0.7), (snap(0.008, 2500, 7000, 0.0025), 0, 0.3))
+
+
+def ui_whoosh(v):
+    return stack((whoosh(0.32, 500, 5500, 1.5, 0.45, 1.0), 0, 0.7), (snap(0.01, 1500, 5000, 0.003), 0.0, 0.2))
 
 
 def ui_confirm(v):
-    return dsp.reverb(stack((I.marimba(dsp.hz("E5"), 0.4, 0.8), 0, 0.7), (I.marimba(dsp.hz("B5"), 0.5, 0.8), 0.07, 0.7)), 0.4, 0.14)
+    parts = []
+    for i, nname in enumerate(("A4", "E5")):
+        parts.append((I.brass_stab(H(nname), 0.18, 0.75), 0.08 * i, 0.5))
+    parts.append((I.glock(H("A6"), 0.5, 0.6), 0.1, 0.3))
+    parts.append((snap(0.01, 2000, 6000, 0.003), 0, 0.3))
+    return dsp.reverb(stack(*parts), 0.3, 0.1)
 
 
 def ui_denied(v):
-    n = n_of(0.26)
-    bonk = dsp.osc(dsp.glide(190, 120, 0.26, 2), shape="sine") * dsp.exp_env(n, 0.09)
-    bonk2 = dsp.osc(dsp.glide(205, 128, 0.26, 2), shape="tri") * dsp.exp_env(n, 0.06)
-    return stack((bonk, 0, 0.8), (bonk2, 0.0, 0.4), (dsp.lp(dsp.noise(0.06), 600) * dsp.exp_env(n_of(0.06), 0.02), 0, 0.5))
+    n = n_of(0.22)
+    buzz = dsp.lp(dsp.osc(dsp.glide(140, 100, 0.22, 1.5), shape="square"), 700) * dsp.ad_env(n, 0.005, 0.09) * 0.45
+    return stack((thud(170, 80, 0.12, 0.04), 0, 0.8), (buzz, 0, 0.7), (snap(0.008, 600, 2200, 0.003), 0, 0.3))
 
 
 def ui_open(v):
-    return dsp.reverb(stack((whoosh(0.2, 600, 3000, 1.3, 0.7), 0, 0.5), (I.marimba(dsp.hz("G5"), 0.35, 0.6), 0.1, 0.5)), 0.3, 0.1)
+    return stack((whoosh(0.28, 400, 4200, 1.5, 0.55, 1.0), 0, 0.6), (thud(300, 160, 0.08, 0.025), 0.02, 0.4), (snap(0.01, 1800, 6000, 0.003), 0.0, 0.3), (metal(1500, 0.25, 0.09, (1, 2.0, 3.0), (1, 0.4, 0.2)), 0.1, 0.15))
 
 
 def ui_close(v):
-    return dsp.reverb(stack((whoosh(0.18, 3000, 600, 1.3, 0.3), 0, 0.5), (I.marimba(dsp.hz("D5"), 0.3, 0.6), 0.05, 0.5)), 0.3, 0.1)
+    return stack((whoosh(0.22, 4200, 400, 1.5, 0.35, 1.0), 0, 0.5), (thud(220, 120, 0.07, 0.022), 0.1, 0.4), (snap(0.01, 1200, 4500, 0.003), 0.14, 0.25))
 
 
 def ui_buy(v):
-    parts = [(coin_get(i), 0.07 * i, 0.5) for i in (2, 3, 5)]
-    for nname in ("C5", "G5", "C6"):
-        parts.append((I.marimba(dsp.hz(nname), 0.6, 0.9), 0.22, 0.5))
-    parts.append((dsp.sparkle(0.6, PENTA, 22, 0.4), 0.2, 0.5))
-    return dsp.reverb(stack(*parts), 0.6, 0.2)
+    parts = [(snap(0.01, 3000, 8000, 0.003), 0, 0.5), (metal(H("E6"), 0.5, 0.2, (1, 2.0, 3.0, 4.2), (1, 0.5, 0.3, 0.15)), 0.0, 0.7), (metal(H("A6"), 0.5, 0.22, (1, 2.0, 3.0), (1, 0.5, 0.3)), 0.07, 0.6), (thud(160, 80, 0.12, 0.04), 0, 0.5)]
+    parts.append((I.brass_stab(H("A4"), 0.2, 0.7), 0.0, 0.25))
+    return dsp.reverb(stack(*parts), 0.35, 0.1)
 
 
 def ui_toggle(v):
-    return stack((I.marimba(dsp.hz("A5"), 0.2, 0.6), 0, 0.7), (dsp.click(0.006, 2400), 0, 0.5))
+    return stack((snap(0.008, 1500, 5000, 0.002), 0, 0.8), (thud(650, 400, 0.04, 0.01, 2.0), 0, 0.5), (snap(0.006, 2500, 7000, 0.0018), 0.045, 0.5))
 
 
-# ------------------------------------------------------------------ ambiance (stéréo, boucle)
 def amb_beach(loop_s=32.0, xfade=1.6):
     """Mer, écume, vent léger et quelques mouettes : boucle parfaite par fondu enchaîné circulaire."""
     total = loop_s + xfade
@@ -459,51 +440,56 @@ def amb_beach(loop_s=32.0, xfade=1.6):
     return head
 
 
-# nom -> (fonction, variantes, pic cible dBFS)
+
+# nom -> (fonction, variantes, pic cible dBFS) : les pics fixent la hiérarchie sonore.
 REGISTRY = {
-    "throw_rapid": (throw_rapid, 3, -9.0),
-    "throw_heavy": (throw_heavy, 2, -5.0),
-    "throw_multi": (throw_multi, 2, -9.0),
-    "throw_pierce": (throw_pierce, 2, -9.0),
-    "hit_rapid": (hit_rapid, 3, -7.0),
-    "hit_heavy": (hit_heavy, 2, -3.5),
-    "hit_multi": (hit_multi, 2, -9.0),
-    "hit_pierce": (hit_pierce, 2, -8.0),
-    "mat_shell": (mat_shell, 2, -9.0),
-    "mat_squish": (mat_squish, 2, -9.0),
-    "mat_hollow": (mat_hollow, 2, -8.0),
-    "mat_bubble": (mat_bubble, 2, -9.0),
-    "mat_kraken": (mat_kraken, 2, -6.0),
-    "die_shell": (die_shell, 2, -6.0),
-    "die_squish": (die_squish, 2, -6.0),
-    "die_hollow": (die_hollow, 2, -5.5),
-    "die_bubble": (die_bubble, 2, -6.0),
+    "throw_rapid": (throw_rapid, 3, -10.0),
+    "throw_heavy": (throw_heavy, 2, -6.0),
+    "throw_multi": (throw_multi, 2, -10.0),
+    "throw_pierce": (throw_pierce, 2, -10.0),
+    "hit_rapid": (hit_rapid, 3, -8.0),
+    "hit_heavy": (hit_heavy, 2, -4.0),
+    "hit_multi": (hit_multi, 2, -10.0),
+    "hit_pierce": (hit_pierce, 2, -9.0),
+    "mat_shell": (mat_shell, 2, -10.0),
+    "mat_squish": (mat_squish, 2, -10.0),
+    "mat_hollow": (mat_hollow, 2, -9.0),
+    "mat_bubble": (mat_bubble, 2, -10.0),
+    "mat_kraken": (mat_kraken, 2, -7.0),
+    "die_shell": (die_shell, 2, -7.0),
+    "die_squish": (die_squish, 2, -7.0),
+    "die_hollow": (die_hollow, 2, -6.5),
+    "die_bubble": (die_bubble, 2, -7.0),
     "die_kraken": (die_kraken, 1, -2.0),
-    "splash_heavy": (splash_heavy, 2, -2.5),
+    "splash_heavy": (splash_heavy, 2, -3.0),
     "boss_slam": (boss_slam, 1, -1.5),
-    "boss_roar": (boss_roar, 1, -3.0),
-    "boss_warning": (boss_warning, 1, -3.0),
-    "boss_charge": (boss_charge, 1, -5.0),
-    "boss_phase": (boss_phase, 1, -2.5),
-    "boss_defeated": (boss_defeated, 1, -2.0),
-    "enemy_spawn": (enemy_spawn, 3, -14.0),
-    "enemy_windup": (enemy_windup, 2, -13.0),
-    "combat_activate": (combat_activate, 1, -12.0),
-    "coin_spawn": (coin_spawn, 3, -18.0),
-    "coin_get": (coin_get, 8, -9.0),
-    "multi_kill": (multi_kill, 1, -4.0),
-    "wave_start": (wave_start, 1, -4.0),
-    "wave_clear": (wave_clear, 1, -4.0),
-    "game_over": (game_over, 1, -3.0),
-    "turret_upgrade": (turret_upgrade, 1, -4.5),
-    "player_hurt": (player_hurt, 3, -3.0),
-    "player_death": (player_death, 1, -2.5),
-    "step_sand": (step_sand, 4, -18.0),
-    "ui_tap": (ui_tap, 1, -8.0),
-    "ui_confirm": (ui_confirm, 1, -6.0),
-    "ui_denied": (ui_denied, 1, -8.0),
-    "ui_open": (ui_open, 1, -9.0),
-    "ui_close": (ui_close, 1, -10.0),
-    "ui_buy": (ui_buy, 1, -5.0),
-    "ui_toggle": (ui_toggle, 1, -9.0),
+    "boss_roar": (boss_roar, 1, -3.5),
+    "boss_warning": (boss_warning, 1, -3.5),
+    "boss_charge": (boss_charge, 1, -6.0),
+    "boss_phase": (boss_phase, 1, -3.0),
+    "boss_defeated": (boss_defeated, 1, -2.5),
+    "spawn_water": (spawn_water, 3, -14.0),
+    "spawn_sand": (spawn_sand, 3, -14.0),
+    "enemy_windup": (enemy_windup, 2, -14.0),
+    "combat_activate": (combat_activate, 1, -13.0),
+    "coin_spawn": (coin_spawn, 3, -19.0),
+    "coin_get": (coin_get, 8, -10.0),
+    "multi_kill": (multi_kill, 1, -5.0),
+    "wave_start": (wave_start, 1, -5.0),
+    "wave_clear": (wave_clear, 1, -5.0),
+    "game_over": (game_over, 1, -4.0),
+    "turret_upgrade": (turret_upgrade, 1, -5.5),
+    "player_hurt": (player_hurt, 3, -3.5),
+    "player_death": (player_death, 1, -3.0),
+    "step_sand": (step_sand, 4, -19.0),
+    "ui_tap": (ui_tap, 1, -10.0),
+    "ui_down": (ui_down, 1, -16.0),
+    "ui_pop": (ui_pop, 1, -15.0),
+    "ui_whoosh": (ui_whoosh, 1, -12.0),
+    "ui_confirm": (ui_confirm, 1, -7.0),
+    "ui_denied": (ui_denied, 1, -9.0),
+    "ui_open": (ui_open, 1, -10.0),
+    "ui_close": (ui_close, 1, -11.0),
+    "ui_buy": (ui_buy, 1, -6.0),
+    "ui_toggle": (ui_toggle, 1, -10.0),
 }

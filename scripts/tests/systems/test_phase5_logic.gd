@@ -137,20 +137,24 @@ func test_feel_director_hitstop_and_slowmo() -> void:
 # --- CameraFit ----------------------------------------------------------------------------------
 
 
-func test_camera_fit_hits_target_and_follows_pitch() -> void:
+func test_camera_fit_width_and_turrets_visible() -> void:
 	var cfg: GameConfig = DataRegistry.config()
 	var feel: FeelConfig = FeelConfig.new()
 	var dist: float = CameraFit.distance_for(cfg, feel)
+	_check(
+		absf(CameraFit.width_at(dist, feel.fov_degrees) - cfg.view_width) < 0.01,
+		"cadrage : la largeur visible vaut view_width (%.1f m)" % cfg.view_width
+	)
 	var pts: Array[Vector3] = CameraFit._points(cfg)
 	var foci: Array[Vector3] = CameraFit._foci(cfg, feel)
 	var worst: float = CameraFit.worst_ndc_x(pts, foci, dist, feel)
-	_check(absf(worst - feel.fit_target) < 0.004, "cadrage : pire cas = cible (%.3f)" % worst)
+	_check(worst < 0.98, "joueur au centre : les 4 tourelles tiennent dans l'écran (%.3f)" % worst)
 	_check(CameraFit.worst_ndc_x(pts, foci, dist * 1.1, feel) < worst, "plus loin = plus petit")
-	# Plus la vue est oblique, plus la caméra doit reculer pour garder les tourelles dans l'écran.
-	var steep: FeelConfig = FeelConfig.new()
-	steep.pitch_degrees = 75.0
-	_check(CameraFit.distance_for(cfg, steep) != dist, "la distance dépend de l'angle")
-	_check(feel.pitch_degrees < 70.0, "angle plus en plongée que la phase 4 (70°)")
+	_check(feel.pitch_degrees < 60.0, "vue oblique (phase 7) : %.0f°" % feel.pitch_degrees)
+	_check(
+		feel.fov_degrees <= 40.0, "focale étroite : peu de déformation (%.0f°)" % feel.fov_degrees
+	)
+	_check(feel.follow_factor > 0.6, "la caméra suit le joueur sur l'île entière")
 
 
 # --- Animation procédurale des ennemis -----------------------------------------------------------
@@ -170,13 +174,19 @@ func test_enemy_juice_spawn_pops_and_settles() -> void:
 	var out: EnemyJuice.Out = EnemyJuice.Out.new()
 	var e: Enemy = _enemy(Enemy.State.SPAWNING, 0.0)
 	EnemyJuice.compute(e, j, 0.5, 0.6, 3.0, out)
-	_check(out.uniform < 0.35, "apparition : part de très petit (%.2f)" % out.uniform)
+	var y0: float = out.offset.y
+	_check(y0 < -0.5, "apparition : part de sous le sol ou l'eau (%.2f)" % y0)
 	e.state_time = 0.25
 	EnemyJuice.compute(e, j, 0.5, 0.6, 3.0, out)
-	_check(out.offset.y > 0.1, "apparition : saute hors du sable")
+	_check(out.offset.y > y0 + 0.5, "apparition : monte (%.2f -> %.2f)" % [y0, out.offset.y])
+	e.from_water = true
+	EnemyJuice.compute(e, j, 0.5, 0.6, 3.0, out)
+	_check(out.offset.y > y0 + 0.5, "apparition depuis l'eau : même montée")
+	e.from_water = false
 	e.state_time = 0.5
 	EnemyJuice.compute(e, j, 0.5, 0.6, 3.0, out)
 	_check(absf(out.uniform - 1.0) < 0.02, "fin d'apparition : taille normale")
+	_check(absf(out.offset.y) < 0.05, "fin d'apparition : posé sur le sol (%.2f)" % out.offset.y)
 
 
 func test_enemy_juice_run_hops_and_squashes() -> void:

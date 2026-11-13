@@ -65,3 +65,14 @@ static func top_inset() -> float:
 	var window_w: int = maxi(DisplayServer.window_get_size().x, 1)
 	var viewport_w: float = float(ProjectSettings.get_setting("display/window/size/viewport_width"))
 	return float(safe.position.y) * viewport_w / float(window_w)
+
+
+## Marge basse à respecter (barre de navigation / geste), convertie en pixels du viewport.
+static func bottom_inset() -> float:
+	var safe: Rect2i = DisplayServer.get_display_safe_area()
+	var window: Vector2i = DisplayServer.window_get_size()
+	if window.y <= 0 or window.x <= 0:
+		return 0.0
+	var viewport_w: float = float(ProjectSettings.get_setting("display/window/size/viewport_width"))
+	var px: float = float(window.y - (safe.position.y + safe.size.y))
+	return maxf(px, 0.0) * viewport_w / float(window.x)

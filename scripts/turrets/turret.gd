@@ -16,6 +16,9 @@ const FLASH_TIME: float = 0.06
 const AIM_DAMPING: float = 12.0
 const RANGE_SLACK: float = 1.05
 const PULSE_TIME: float = 0.5
+## Échelle des modèles de tourelle (docs/SIZE_SYSTEM.md) : ~2,6 m de large, un peu plus haute que
+## le héros.
+const TURRET_SCALE: float = 1.25
 
 var turret_id: int = 0
 var data: TurretData
@@ -160,6 +163,7 @@ func _build_model() -> void:
 	_rig = ModelRig.create(data.model())
 	if _rig == null:
 		return
+	_rig.root.scale = Vector3.ONE * TURRET_SCALE
 	add_child(_rig.root)
 	_base = _rig.find_node("Base")
 	_pivot = _rig.find_node("Pivot")
@@ -203,8 +207,8 @@ func _planar_distance_from_center(node: Node3D) -> float:
 
 func _build_pulse_ring(color: Color) -> void:
 	var torus: TorusMesh = TorusMesh.new()
-	torus.inner_radius = 1.15
-	torus.outer_radius = 1.3
+	torus.inner_radius = 1.45
+	torus.outer_radius = 1.6
 	torus.rings = 28
 	torus.ring_segments = 4
 	_pulse_ring = MeshInstance3D.new()

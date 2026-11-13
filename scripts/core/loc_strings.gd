@@ -48,6 +48,18 @@ const STRINGS: Dictionary = {
 	"perm_speed_desc": {"fr": "Le héros court plus vite", "en": "The hero runs faster"},
 	"buy": {"fr": "AMÉLIORER", "en": "UPGRADE"},
 	"now_next": {"fr": "%s  →  %s", "en": "%s  →  %s"},
+	"stat_best_coins": {"fr": "Pièces en une partie", "en": "Coins in one run"},
+	"stat_best_kills": {"fr": "Éliminations en une partie", "en": "Kills in one run"},
+	"section_records": {"fr": "RECORDS", "en": "RECORDS"},
+	"section_totals": {"fr": "CUMULS", "en": "TOTALS"},
+	"section_recent": {"fr": "DERNIÈRES PARTIES", "en": "RECENT RUNS"},
+	"recent_empty": {"fr": "Aucune partie jouée pour l'instant", "en": "No runs played yet"},
+	"wave_short": {"fr": "V%d", "en": "W%d"},
+	"run_recovered":
+	{
+		"fr": "Partie interrompue récupérée : +%d pièces",
+		"en": "Interrupted run recovered: +%d coins"
+	},
 	"stat_best_time": {"fr": "Meilleur temps", "en": "Best time"},
 	"stat_best_wave": {"fr": "Meilleure vague", "en": "Best wave"},
 	"stat_kills": {"fr": "Ennemis éliminés", "en": "Enemies defeated"},

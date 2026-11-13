@@ -15,6 +15,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import candy
 from candy import (SS, Layer, canvas, draw_on, ellipse, hexc, line, polygon, rrect,  # noqa: E402
                    smooth, to_mask)
 
@@ -51,14 +52,29 @@ def fit(im, width=None, height=None):
     return im.resize((width, height), Image.LANCZOS)
 
 
+def hue_shift(im, degrees, sat=1.0, val=1.0):
+    """Décale la teinte d'une image RGBA (alpha conservé) : recolore les éléments fournis."""
+    rgba = im.convert("RGBA")
+    a = rgba.getchannel("A")
+    hsv = np.asarray(rgba.convert("RGB").convert("HSV")).astype(np.float32)
+    hsv[..., 0] = (hsv[..., 0] + degrees / 360.0 * 255.0) % 255.0
+    hsv[..., 1] = np.clip(hsv[..., 1] * sat, 0, 255)
+    hsv[..., 2] = np.clip(hsv[..., 2] * val, 0, 255)
+    out_rgb = Image.fromarray(hsv.astype(np.uint8), "HSV").convert("RGB")
+    out_rgb.putalpha(a)
+    return out_rgb
+
+
 def provided():
     def p(name):
         return os.path.join(PROVIDED, name)
 
     fit(clean(Image.open(p("logo.png"))), width=900).save(out("brand", "logo.png"), optimize=True)
     for c in ("blue", "red", "yellow"):
-        fit(clean(Image.open(p(f"{c}_banner.png"))), width=1024).save(
-            out("brand", f"banner_{c}.png"), optimize=True)
+        banner = fit(clean(Image.open(p(f"{c}_banner.png"))), width=1024)
+        if c == "blue":
+            banner = hue_shift(banner, 38.0, 0.48, 0.88)  # bleu ciel -> pierre violette du socle du logo
+        banner.save(out("brand", f"banner_{c}.png"), optimize=True)
     for n in ("coin", "star", "trophy", "gift"):
         fit(clean(Image.open(p(f"{n}.png"))), height=320).save(out("icons", f"{n}.png"), optimize=True)
         fit(clean(Image.open(p(f"{n}.png"))), height=112).save(out("icons", f"{n}_s.png"), optimize=True)
@@ -85,14 +101,21 @@ def provided():
 # ------------------------------------------------------------------------------------------
 # 2. Boutons, panneaux, barres
 # ------------------------------------------------------------------------------------------
+# Palette de l'interface tirée du LOGO : or / orange / rouge des lettres et du ruban, pierre violette
+# du socle, bleu clair de la lueur des haches, crème. Contour brun très sombre comme sur le logo.
+INK = "#2E1712"
 BTN = {  # (haut, bas, lèvre)
-    "green": ("#9CF24E", "#2FC24A", "#1E8F3A"),
-    "blue": ("#4FD2FF", "#1E7BF0", "#1655B8"),
-    "yellow": ("#FFE95A", "#FFA818", "#D77A08"),
-    "red": ("#FF7A5C", "#F0362C", "#A8201C"),
-    "purple": ("#C69CFF", "#8A4FE8", "#5C2FB0"),
-    "grey": ("#E2E8F0", "#A9B4C6", "#7B879C"),
+    "gold": ("#FFE24D", "#FFA81C", "#C25A0B"),
+    "orange": ("#FFA24A", "#F0601F", "#A9300F"),
+    "red": ("#FF6B55", "#E0302B", "#8C1820"),
+    "blue": ("#5CD0FF", "#2A86EE", "#1A4DA8"),
+    "green": ("#C2EE5A", "#58BE3E", "#2E7F2F"),
+    "purple": ("#B9A4FF", "#7A5CE0", "#44309A"),
+    "stone": ("#A7A3D6", "#6A66A6", "#3E3A70"),
+    "grey": ("#E4E2EE", "#AFAAC4", "#7E7A98"),
 }
+BTN["yellow"] = BTN["gold"]  # ancien nom, conservé pour les écrans non migrés
+candy.DEFAULT_OUTLINE = (5, INK)
 
 
 def button(name, size=(256, 144), suffix=""):
@@ -101,12 +124,12 @@ def button(name, size=(256, 144), suffix=""):
     top, bottom, lip = BTN[name]
     L = Layer(size)
     lm = canvas(w, h)
-    rrect(draw_on(lm), (4, 18 * k, w - 4, h - 4), 52 * k)
+    rrect(draw_on(lm), (10, 22 * k, w - 10, h - 9), 50 * k)
     lipmask = to_mask(lm)
     L.shadow(lipmask, 0, 4 * k, 5 * k, "#10203C", 0.30)
     L.add(lipmask, lip, lip, 14 * k, spec=0.0, flat=0.7, rim=0.1, edge=0.0)
     fm = canvas(w, h)
-    rrect(draw_on(fm), (4, 4, w - 4, h - 22 * k), 50 * k)
+    rrect(draw_on(fm), (10, 10, w - 10, h - 26 * k), 48 * k)
     L.add(to_mask(fm), top, bottom, 30 * k, spec=0.45, flat=0.30, gloss=0.55, rim=0.35, edge=0.28)
     L.image().save(out("buttons", f"btn{suffix}_{name}.png"), optimize=True)
 
@@ -116,12 +139,12 @@ def round_button(name, size=(176, 192)):
     top, bottom, lip = BTN[name]
     L = Layer(size)
     lm = canvas(w, h)
-    ellipse(draw_on(lm), (4, 20, w - 4, h - 4))
+    ellipse(draw_on(lm), (10, 24, w - 10, h - 9))
     lipmask = to_mask(lm)
     L.shadow(lipmask, 0, 4, 5, "#10203C", 0.30)
     L.add(lipmask, lip, lip, 14, spec=0.0, flat=0.7, rim=0.1, edge=0.0)
     fm = canvas(w, h)
-    ellipse(draw_on(fm), (4, 4, w - 4, h - 24))
+    ellipse(draw_on(fm), (10, 10, w - 10, h - 28))
     L.add(to_mask(fm), top, bottom, 38, spec=0.45, flat=0.25, gloss=0.55, rim=0.35, edge=0.28)
     L.image().save(out("buttons", f"btn_round_{name}.png"), optimize=True)
 
@@ -130,12 +153,12 @@ def panel(name, body_top, body_bottom, frame_top, frame_bottom, size=(256, 256),
     w, h = size
     L = Layer(size)
     fm = canvas(w, h)
-    rrect(draw_on(fm), (4, 4, w - 4, h - 12), r)
+    rrect(draw_on(fm), (10, 10, w - 10, h - 16), r)
     frame = to_mask(fm)
     L.shadow(frame, 0, 4, 5, "#10203C", 0.28)
     L.add(frame, frame_top, frame_bottom, 22, spec=0.3, flat=0.3, gloss=0.35, rim=0.3, edge=0.3)
     bm = canvas(w, h)
-    rrect(draw_on(bm), (4 + pad, 4 + pad, w - 4 - pad, h - 12 - pad), r - pad)
+    rrect(draw_on(bm), (10 + pad, 10 + pad, w - 10 - pad, h - 16 - pad), r - pad)
     L.add(to_mask(bm), body_top, body_bottom, 26, spec=0.0, flat=0.6, inset=True, rim=0.12, edge=0.12)
     L.image().save(out("panels", f"{name}.png"), optimize=True)
 
@@ -145,12 +168,12 @@ def plate(name, top, bottom, rim, size=(192, 96), r=48, alpha=1.0):
     w, h = size
     L = Layer(size)
     m = canvas(w, h)
-    rrect(draw_on(m), (3, 3, w - 3, h - 6), r)
+    rrect(draw_on(m), (9, 9, w - 9, h - 12), r)
     mask = to_mask(m)
     L.shadow(mask, 0, 3, 4, "#0A1630", 0.30)
     L.add(mask, rim, rim, 10, spec=0.0, flat=0.6, rim=0.25, edge=0.2)
     m2 = canvas(w, h)
-    rrect(draw_on(m2), (3 + 7, 3 + 7, w - 3 - 7, h - 6 - 7), r - 7)
+    rrect(draw_on(m2), (9 + 7, 9 + 7, w - 9 - 7, h - 12 - 7), r - 7)
     L.add(to_mask(m2), top, bottom, 14, spec=0.0, flat=0.6, inset=True, rim=0.1, edge=0.1)
     im = L.image()
     if alpha < 1.0:
@@ -165,19 +188,19 @@ def tube(name, size, top, bottom, rim, inset=True):
     r = h // 2
     L = Layer(size)
     m = canvas(w, h)
-    rrect(draw_on(m), (2, 2, w - 2, h - 4), r - 2)
+    rrect(draw_on(m), (8, 8, w - 8, h - 10), r - 8)
     mask = to_mask(m)
     L.shadow(mask, 0, 2, 3, "#0A1630", 0.25)
     L.add(mask, rim, rim, 8, spec=0.0, flat=0.6, rim=0.2, edge=0.15)
     m2 = canvas(w, h)
-    rrect(draw_on(m2), (2 + 6, 2 + 6, w - 2 - 6, h - 4 - 6), r - 8)
+    rrect(draw_on(m2), (8 + 6, 8 + 6, w - 8 - 6, h - 10 - 6), r - 14)
     L.add(to_mask(m2), top, bottom, 10, spec=0.0, flat=0.6, inset=inset, rim=0.1, edge=0.1)
     L.image().save(out("bars", f"{name}.png"), optimize=True)
 
 
 def fill(name, size, top, bottom):
     w, h = size
-    L = Layer(size)
+    L = Layer(size, None)
     m = canvas(w, h)
     rrect(draw_on(m), (1, 1, w - 1, h - 1), h // 2 - 1)
     L.add(to_mask(m), top, bottom, h * 0.42, spec=0.35, flat=0.2, gloss=0.5, rim=0.3, edge=0.25)
@@ -186,9 +209,9 @@ def fill(name, size, top, bottom):
 
 def circle_asset(path, size, top, bottom, bevel, ring=None, **kw):
     w, h = size
-    L = Layer(size)
+    L = Layer(size, kw.pop("outline", "default"))
     m = canvas(w, h)
-    g = 9  # marge : l'ombre portée ne doit pas être coupée par le bord de l'image
+    g = 12  # marge : l'ombre portée ne doit pas être coupée par le bord de l'image
     ellipse(draw_on(m), (g, g - 3, w - g, h - g - 3))
     mask = to_mask(m)
     if kw.pop("shadow", True):
@@ -206,29 +229,29 @@ def widgets():
         button(n)
         button(n, (160, 90), "_s")
         round_button(n)
-    panel("panel_light", "#FFFDF4", "#FFE9BC", "#3FA9FF", "#1C6BDB")
-    panel("panel_dark", "#31449A", "#222F6E", "#6FB6FF", "#2F6FE0")
-    panel("panel_card", "#FFFFFF", "#EAF2FF", "#9FC8FF", "#6FA2F0", r=56, pad=12)
-    panel("panel_gold", "#FFF3B8", "#FFD45A", "#FFC21E", "#E58E0C", r=56, pad=14)
-    plate("plate_dark", "#2A3A86", "#1D2860", "#6FB6FF")
-    plate("plate_light", "#FFFDF4", "#FFE9BC", "#3FA9FF")
-    tube("bar_frame", (256, 64), "#1B2554", "#27357C", "#6FB6FF")
-    fill("bar_red", (192, 44), "#FF8A78", "#F0362C")
-    fill("bar_green", (192, 44), "#B6F76A", "#2FC24A")
+    panel("panel_light", "#FFF8E4", "#FFE6B0", "#8C88C4", "#55508A")
+    panel("panel_dark", "#3B3768", "#26224A", "#FFC93C", "#E8891A")
+    panel("panel_card", "#FFFFFF", "#F0EDFC", "#B4B0DE", "#8581BC", r=56, pad=12)
+    panel("panel_gold", "#FFF0B0", "#FFD055", "#FFB020", "#D96F0C", r=56, pad=14)
+    plate("plate_dark", "#3B3768", "#26224A", "#F2A32A")
+    plate("plate_light", "#FFF8E4", "#FFE6B0", "#8C88C4")
+    tube("bar_frame", (256, 64), "#221E44", "#322D5C", "#8C88C4")
+    fill("bar_red", (192, 44), "#FF8C78", "#E8372E")
+    fill("bar_green", (192, 44), "#C8F26A", "#58BE3E")
     fill("bar_yellow", (192, 44), "#FFEE70", "#FFA818")
-    fill("bar_blue", (192, 44), "#7CE0FF", "#1E7BF0")
-    fill("bar_white", (192, 44), "#FFFFFF", "#CFE0FA")
-    tube("slider_track", (256, 48), "#1B2554", "#27357C", "#6FB6FF")
+    fill("bar_blue", (192, 44), "#86E2FF", "#2A86EE")
+    fill("bar_white", (192, 44), "#FFFFFF", "#E3DDF5")
+    tube("slider_track", (256, 48), "#221E44", "#322D5C", "#8C88C4")
     # interrupteur
-    for name, (t, b, lip) in (("on", BTN["green"]), ("off", BTN["grey"])):
+    for name, (t, b, lip) in (("on", BTN["gold"]), ("off", BTN["grey"])):
         L = Layer((192, 104))
         m = canvas(192, 104)
-        rrect(draw_on(m), (3, 3, 189, 96), 46)
+        rrect(draw_on(m), (9, 9, 183, 92), 42)
         mask = to_mask(m)
         L.shadow(mask, 0, 3, 4, "#0A1630", 0.28)
         L.add(mask, lip, lip, 10, spec=0.0, flat=0.6, edge=0.1)
         m2 = canvas(192, 104)
-        rrect(draw_on(m2), (10, 10, 182, 88), 39)
+        rrect(draw_on(m2), (16, 16, 176, 85), 34)
         L.add(to_mask(m2), t, b, 22, spec=0.3, flat=0.35, gloss=0.35, inset=True, rim=0.1, edge=0.15)
         L.image().save(out("bars", f"toggle_{name}.png"), optimize=True)
     circle_asset(out("bars", "knob_white.png"), (96, 104), "#FFFFFF", "#CFDDF5", 30,
@@ -243,24 +266,25 @@ def widgets():
 def misc():
     # base du joystick : anneau de verre clair
     size = (320, 320)
-    L = Layer(size)
+    L = Layer(size, None)
     m = canvas(*size)
     ellipse(draw_on(m), (6, 6, 314, 314))
-    L.add(to_mask(m), "#FFFFFF", "#BFE3FF", 54, spec=0.2, flat=0.8, rim=0.5, edge=0.2, gloss=0.2)
+    L.add(to_mask(m), "#FFFFFF", "#FFE7B5", 54, spec=0.2, flat=0.8, rim=0.5, edge=0.2, gloss=0.2)
     m2 = canvas(*size)
     ellipse(draw_on(m2), (40, 40, 280, 280))
-    L.add(to_mask(m2), "#5DB2FF", "#2A6FE0", 40, spec=0.0, flat=0.7, inset=True, rim=0.1, edge=0.1)
+    L.add(to_mask(m2), "#FFC24A", "#E8821E", 40, spec=0.0, flat=0.7, inset=True, rim=0.1, edge=0.1)
     im = L.image()
     a = np.asarray(im).copy()
     a[..., 3] = (a[..., 3] * 0.62).astype(np.uint8)
     Image.fromarray(a, "RGBA").save(out("misc", "joy_base.png"), optimize=True)
-    circle_asset(out("misc", "joy_knob.png"), (176, 184), "#FFFFFF", "#7CC4FF", 60,
-                 spec=0.7, flat=0.0, gloss=0.55)
+    circle_asset(out("misc", "joy_knob.png"), (176, 184), "#FFFFFF", "#FFC24A", 60,
+                 spec=0.7, flat=0.0, gloss=0.55, outline=None)
     # pastille de notification (rouge) et point
     circle_asset(out("misc", "badge_red.png"), (72, 76), "#FF8A78", "#E02A22", 24, spec=0.5, gloss=0.4)
-    circle_asset(out("misc", "badge_green.png"), (72, 76), "#B6F76A", "#2FC24A", 24, spec=0.5, gloss=0.4)
+    circle_asset(out("misc", "badge_green.png"), (72, 76), "#C8F26A", "#58BE3E", 24, spec=0.5, gloss=0.4)
     # point de chargement (lumière)
-    circle_asset(out("misc", "dot_white.png"), (48, 52), "#FFFFFF", "#CFE0FA", 16, spec=0.4, gloss=0.3)
+    circle_asset(out("misc", "dot_white.png"), (48, 52), "#FFFFFF", "#E3DDF5", 16, spec=0.4, gloss=0.3,
+                 outline=None)
     # rayons de victoire (fond tournant de l'écran de fin) : éventail doux, teinté en jeu
     size = 512
     img = np.zeros((size, size), np.float32)
@@ -289,7 +313,7 @@ def misc():
 IC = 192
 
 
-def glyph(name, fn, top="#FFFFFF", bottom="#CFE0FA", bevel=14, shadow="#0A2A6E", **kw):
+def glyph(name, fn, top="#FFFFFF", bottom="#E3DDF5", bevel=14, shadow="#2E1712", **kw):
     """Icône blanche gonflée avec légère ombre portée colorée (lisible sur tous les boutons)."""
     m = canvas(IC, IC)
     fn(draw_on(m))
@@ -301,7 +325,7 @@ def glyph(name, fn, top="#FFFFFF", bottom="#CFE0FA", bevel=14, shadow="#0A2A6E",
     L.image().save(out("icons", f"{name}.png"), optimize=True)
 
 
-def colored(name, parts, shadow="#0A1630"):
+def colored(name, parts, shadow="#2E1712"):
     """Icône multi-couches : parts = [(fn, top, bottom, bevel, opts)], dessinées dans l'ordre."""
     L = Layer((IC, IC))
     first = True

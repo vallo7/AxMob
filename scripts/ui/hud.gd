@@ -1,8 +1,10 @@
 class_name Hud
 extends Control
-## HUD de partie (phase 6, style « bonbon ») : barre de PV avec cœur, fenêtre de combat, vague,
-## temps, pièces, bouton pause et accès aux tourelles (pastille rouge quand une amélioration est
-## abordable). Annonces sur rubans (vague bleu, boss rouge, boss vaincu jaune). Discret : il ne doit
+## HUD de partie (phase 6, style « bonbon », phase 7 : barre des 4 tourelles en bas) : PV avec cœur,
+## fenêtre de combat, vague, temps, pièces, bouton pause. Disposition sans chevauchement : bloc du
+## haut (PV / pièces / pause, puis vague et temps), barre du boss juste dessous, ruban d'annonce au
+## centre, barre des tourelles en bas. Annonces sur rubans (vague bleu, boss rouge, boss vaincu
+## jaune). Discret : il ne doit
 ## pas masquer l'action. L'overlay de mesures n'apparaît que si le réglage « FPS » est actif.
 
 signal pause_pressed
@@ -11,10 +13,13 @@ signal upgrades_pressed
 const BAR_W: float = 470.0
 const DEBUG_REFRESH: float = 0.25
 const BANNER_INK: Dictionary = {
-	"blue": Color("#0F3C8A"),
+	"blue": Color("#2F2A5C"),
 	"red": Color("#7E1410"),
 	"yellow": Color("#9A5200"),
 }
+
+## Barre des quatre tourelles (phase 7), publique : Gameplay y branche les achats.
+var dock: TurretDock
 
 var _ctx: RunContext
 var _player: PlayerController
@@ -30,9 +35,6 @@ var _banner: Control
 var _banner_art: TextureRect
 var _banner_label: Label
 var _debug: Label
-var _upgrade_button: AxButton
-var _badge: Label
-var _badge_bg: TextureRect
 var _debug_timer: float = 0.0
 var _banner_tween: Tween
 var _vignette: ColorRect
@@ -74,10 +76,6 @@ func _process(delta: float) -> void:
 		_time_pill.set_text(t, false)
 	var window_ratio: float = _ctx.combat.remaining(_ctx.time) / _ctx.config.window_duration
 	_window_bar.set_ratio(clampf(window_ratio, 0.0, 1.0), false)
-	var affordable: int = _upgrades.affordable_count()
-	_badge.visible = affordable > 0
-	_badge_bg.visible = affordable > 0
-	_badge.text = str(affordable)
 	_debug_timer -= delta
 	if _debug.visible and _debug_timer <= 0.0:
 		_debug_timer = DEBUG_REFRESH
@@ -144,23 +142,11 @@ func _build() -> void:
 	pause_btn.pressed.connect(func() -> void: pause_pressed.emit())
 	add_child(pause_btn)
 
-	# Accès aux tourelles, en bas à droite (le joystick est en bas à gauche).
-	_upgrade_button = AxButton.make(Loc.t("turrets"), "yellow", Vector2(360.0, 138.0), 40, "axe")
-	_upgrade_button.position = Vector2(width - 384.0, height - 300.0)
-	_upgrade_button.pressed.connect(func() -> void: upgrades_pressed.emit())
-	add_child(_upgrade_button)
-	_badge_bg = UiArt.image("misc/badge_red", Vector2(76, 80))
-	_badge_bg.position = _upgrade_button.position + Vector2(318.0, -34.0)
-	_badge_bg.size = Vector2(76, 80)
-	_badge_bg.visible = false
-	add_child(_badge_bg)
-	_badge = UiArt.label("0", 38, UiArt.WHITE, Color("#7E1410"))
-	_badge.position = _badge_bg.position
-	_badge.size = _badge_bg.size
-	_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_badge.visible = false
-	add_child(_badge)
+	# Barre des 4 tourelles, tout en bas (accès rapide) : touche = acheter, appui long = détails.
+	dock = TurretDock.new()
+	add_child(dock)
+	dock.setup(_ctx, _upgrades)
+	dock.details_requested.connect(func() -> void: upgrades_pressed.emit())
 
 	# Ruban d'annonce (vague, boss).
 	_banner = Control.new()
@@ -173,7 +159,7 @@ func _build() -> void:
 	_banner_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_banner_art.stretch_mode = TextureRect.STRETCH_SCALE
 	_banner.add_child(_banner_art)
-	_banner_label = UiArt.label("", 96, UiArt.WHITE, Color("#0F3C8A"))
+	_banner_label = UiArt.label("", 96, UiArt.WHITE, Color("#2F2A5C"))
 	_banner_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_banner_label.offset_left = 120.0
 	_banner_label.offset_right = -120.0
@@ -184,7 +170,7 @@ func _build() -> void:
 	_banner.add_child(_banner_label)
 
 	_debug = UiArt.label("", 28, Color(0.8, 1.0, 0.8), Color(0, 0, 0, 0.9), 5)
-	_debug.position = Vector2(30.0, top + 240.0)
+	_debug.position = Vector2(30.0, height - 330.0 - UiKit.bottom_inset() - 190.0)
 	_debug.visible = UserSettings.show_fps()
 	add_child(_debug)
 

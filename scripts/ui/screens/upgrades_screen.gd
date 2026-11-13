@@ -72,7 +72,7 @@ func _make_row(i: int) -> Dictionary:
 	effect.size = Vector2(500.0, 40.0)
 	effect.clip_text = true
 	card.add_child(effect)
-	var buy: AxButton = AxButton.make("", "yellow", Vector2(250.0, 132.0), 38, "coin_s")
+	var buy: AxButton = AxButton.make("", "gold", Vector2(250.0, 132.0), 38, "coin_s")
 	buy.small = true
 	buy.anchor_left = 1.0
 	buy.anchor_right = 1.0
@@ -110,7 +110,7 @@ func _refresh_all() -> void:
 			buy.icon_name = "coin_s"
 			buy.text = str(SaveManager.perm_cost(i))
 			buy.disabled = false
-			buy.style = "yellow" if SaveManager.can_buy(i) else "red"
+			buy.style = "gold" if SaveManager.can_buy(i) else "stone"
 
 
 func _on_buy(i: int) -> void:

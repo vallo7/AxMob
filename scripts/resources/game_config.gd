@@ -6,21 +6,24 @@ extends Resource
 ## Comportement du jeu pendant que le panneau d'amélioration est ouvert.
 enum UpgradePause { FULL_STOP, SLOW, NONE }
 
-@export_group("Arène")
-## Rayon de l'arène : LE réglage de taille. L'anneau de tourelles et le cadrage de la caméra en
-## sont déduits (voir ring_radius() et camera_visible_width()). Plus il est grand, plus les
-## personnages paraissent petits à l'écran (la caméra garde toute l'arène dans la largeur).
-@export var arena_radius: float = 13.0
-## Distance des tourelles au-delà du bord de l'arène.
-@export var turret_ring_offset: float = 1.4
-## Marge de sécurité (en unités) au-delà de l'anneau de tourelles. Le test de cadrage mesure
-## le pire cas (joueur au bord, caméra décalée) : à 0.4, il reste ~4 % de la demi-largeur.
-@export var camera_margin: float = 0.4
+@export_group("Île et caméra")
+## Rayon MOYEN de la zone jouable (joueur), en mètres. Toute l'île est l'arène : le contour réel de
+## la
+## plage (IslandShape) fixe la limite, il n'y a plus de bordure artificielle. L'île, la mer et le
+## décor sont mis à l'échelle de ce rayon (voir Arena).
+@export var arena_radius: float = 16.2
+## Rayon (m) de l'anneau où sont posées les quatre tourelles (à l'intérieur de l'île).
+@export var turret_ring_radius: float = 9.8
+## Largeur du monde visible (m, au niveau du point visé). Plus elle est petite, plus les personnages
+## paraissent grands ; la caméra suit le joueur (FeelConfig.follow_factor).
+@export var view_width: float = 22.0
+## Rayon de collision des tourelles (m) : le joueur et les ennemis les contournent.
+@export var turret_collision_radius: float = 1.15
 
 @export_group("Joueur")
 @export var player_hp: float = 100.0
 @export var player_speed: float = 6.5
-@export var player_radius: float = 0.45
+@export var player_radius: float = 0.5
 @export var accel_time: float = 0.12
 @export var decel_time: float = 0.10
 @export var turn_speed: float = 14.0
@@ -45,6 +48,8 @@ enum UpgradePause { FULL_STOP, SLOW, NONE }
 ## Marge au-delà de la portée d'attaque dans laquelle un coup en cours d'armement porte encore.
 @export var attack_leeway: float = 0.25
 @export var spawn_min_player_dist: float = 7.0
+## Part des apparitions qui sortent du SABLE (le reste sort de l'EAU, sur le rivage).
+@export_range(0.0, 1.0, 0.05) var sand_spawn_chance: float = 0.4
 @export var stagger_time: float = 0.2
 @export var knockback_speed: float = 3.0
 @export var death_time: float = 0.25
@@ -68,12 +73,17 @@ enum UpgradePause { FULL_STOP, SLOW, NONE }
 
 ## Rayon de l'anneau où sont posées les tourelles.
 func ring_radius() -> float:
-	return arena_radius + turret_ring_offset
+	return turret_ring_radius
 
 
-## Largeur visible (en unités, au niveau du sol) pour que toute l'arène et ses tourelles tiennent.
+## Largeur visible (en mètres, au niveau du point visé).
 func camera_visible_width() -> float:
-	return 2.0 * (ring_radius() + camera_margin)
+	return view_width
+
+
+## Échelle monde / modèle de l'île, déduite du rayon jouable.
+func island_scale() -> float:
+	return IslandShape.scale_for_play_radius(arena_radius)
 
 
 ## Facteur de temps de simulation selon le mode de pause des améliorations.

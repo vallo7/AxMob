@@ -8,7 +8,7 @@ const FLASH_TIME: float = 0.08
 const SEPARATION_STRENGTH: float = 6.0
 const EDGE_MARGIN: float = 1.2
 const EDGE_STRENGTH: float = 4.0
-const MAX_ENEMY_RADIUS: float = 1.6
+const MAX_ENEMY_RADIUS: float = 2.0
 const BRAKE_ACCEL: float = 40.0
 ## Une barre de vie reste affichée ce temps (s) après un impact.
 const BAR_SHOW_TIME: float = 2.5
@@ -78,6 +78,7 @@ func spawn(data: EnemyData, position: Vector2, level: int = 1) -> int:
 	e.level = maxi(level, 1)
 	e.pos = position
 	e.vel = Vector2.ZERO
+	e.from_water = _ctx.shape.is_water(position)
 	e.state = Enemy.State.SPAWNING
 	e.state_time = 0.0
 	e.health = HealthComponent.new(data.max_hp * EnemyLevels.hp_mult(balance, e.level), 0.0)
@@ -209,13 +210,13 @@ func _player_gap(e: Enemy) -> float:
 
 
 func _move(e: Enemy, desired: Vector2, dt: float) -> void:
-	var arena_r: float = _ctx.config.arena_radius
 	desired += _separation(e)
-	desired += Steering.edge_push(e.pos, arena_r - e.data.radius, EDGE_MARGIN, EDGE_STRENGTH)
+	desired += _ctx.shape.edge_push(e.pos, e.data.radius, EDGE_MARGIN, EDGE_STRENGTH)
 	e.vel = Steering.approach(e.vel, desired, e.data.max_accel, dt)
 	e.pos += e.vel * dt
 	_resolve_player_overlap(e)
-	e.pos = Steering.clamp_to_arena(e.pos, e.data.radius, arena_r)
+	e.pos = _ctx.obstacles.push_out(e.pos, e.data.radius)
+	e.pos = _ctx.shape.clamp_enemy(e.pos, e.data.radius)
 
 
 func _separation(e: Enemy) -> Vector2:
@@ -285,7 +286,7 @@ func _boss_summon(e: Enemy) -> void:
 	for i: int in b.data.summon_count:
 		var angle: float = TAU * float(i) / float(maxi(b.data.summon_count, 1)) + float(e.id)
 		var p: Vector2 = e.pos + Vector2.from_angle(angle) * (e.data.radius + SUMMON_RING)
-		p = Steering.clamp_to_arena(p, b.data.summon_enemy.radius, _ctx.config.arena_radius)
+		p = _ctx.shape.clamp_enemy(p, b.data.summon_enemy.radius)
 		EventBus.enemy_spawn_requested.emit(b.data.summon_enemy, p, level)
 
 
@@ -320,9 +321,10 @@ func _step_charging(e: Enemy, dt: float) -> void:
 	e.vel = b.charge_dir * b.data.charge_speed
 	e.pos += e.vel * dt
 	e.facing = b.charge_dir
-	var limit: float = maxf(_ctx.config.arena_radius - e.data.radius, 0.0)
-	var at_wall: bool = e.pos.length() >= limit
-	e.pos = Steering.clamp_to_arena(e.pos, e.data.radius, _ctx.config.arena_radius)
+	var before: Vector2 = e.pos
+	e.pos = _ctx.shape.clamp_enemy(e.pos, e.data.radius)
+	var at_wall: bool = e.pos.distance_squared_to(before) > 0.0001
+	e.pos = _ctx.obstacles.push_out(e.pos, e.data.radius)
 	var contact: float = e.data.radius + _ctx.config.player_radius
 	var hit: bool = _ctx.player_alive and e.pos.distance_to(_ctx.player_pos) <= contact
 	if hit:

@@ -142,14 +142,22 @@ def over(dst_rgb, dst_a, src_rgb, src_a):
     return out, out_a
 
 
-class Layer:
-    """Une couche gonflée : masque + couleurs. Les couches s'empilent dans l'ordre d'appel."""
+# Contour cartoon appliqué à toute couche à l'enregistrement : (largeur px, couleur) ou None.
+DEFAULT_OUTLINE = None
 
-    def __init__(self, size):
+
+class Layer:
+    """Une couche gonflée : masque + couleurs. Les couches s'empilent dans l'ordre d'appel.
+    Phase 7 : les ombres portées sont gardées à part et composées SOUS le contour cartoon (un trait
+    sombre épais autour de la silhouette, comme sur le logo), lui-même sous les formes."""
+
+    def __init__(self, size, outline="default"):
         self.w, self.h = size
         shape = (self.h * SS, self.w * SS)
         self.rgb = np.zeros(shape + (3,), np.float32)
         self.a = np.zeros(shape, np.float32)
+        self._shadows = []
+        self._outline = DEFAULT_OUTLINE if outline == "default" else outline
 
     def add(self, mask, top, bottom, bevel, **kw):
         rgb, a = shade(mask, hexc(top) if isinstance(top, str) else top,
@@ -167,12 +175,27 @@ class Layer:
         """Ombre portée DOUCE sous les couches existantes (à appeler avant elles)."""
         m = ndi.shift(mask, (S(dy), S(dx)), order=1)
         m = ndi.gaussian_filter(m, S(blur)) * alpha
-        rgb = np.broadcast_to(hexc(color), m.shape + (3,))
-        self.rgb, self.a = over(self.rgb, self.a, rgb, m)
+        self._shadows.append((hexc(color), m))
         return self
 
+    def _compose(self):
+        base_rgb = np.zeros_like(self.rgb)
+        base_a = np.zeros_like(self.a)
+        for color, m in self._shadows:
+            base_rgb, base_a = over(base_rgb, base_a, np.broadcast_to(color, m.shape + (3,)), m)
+        if self._outline:
+            width, ocol = self._outline
+            inside = self.a > 0.5
+            dist = ndi.distance_transform_edt(~inside).astype(np.float32)
+            ring = np.clip((S(width) - dist) / max(S(1.0), 1.0) + 0.5, 0.0, 1.0)
+            ring = ndi.gaussian_filter(ring, 0.6)
+            ocolor = hexc(ocol) if isinstance(ocol, str) else ocol
+            base_rgb, base_a = over(base_rgb, base_a, np.broadcast_to(ocolor, ring.shape + (3,)), ring)
+        return over(base_rgb, base_a, self.rgb, self.a)
+
     def image(self):
-        a = np.clip(self.a, 0, 1)
-        rgba = np.dstack([self.rgb, a])
+        rgb, a = self._compose()
+        a = np.clip(a, 0, 1)
+        rgba = np.dstack([rgb, a])
         im = Image.fromarray((rgba * 255.0 + 0.5).astype(np.uint8), "RGBA")
         return im.resize((self.w, self.h), Image.LANCZOS)

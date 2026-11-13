@@ -6,17 +6,15 @@ extends Resource
 
 @export_group("Caméra : angle et cadrage")
 ## Élévation de la caméra (90 = vue de dessus pure). Phase 4 : 70. Plus bas = plus en plongée.
-@export_range(40.0, 85.0, 0.5) var pitch_degrees: float = 60.0
-@export_range(30.0, 80.0, 0.5) var fov_degrees: float = 55.0
+@export_range(35.0, 85.0, 0.5) var pitch_degrees: float = 46.0
+@export_range(25.0, 80.0, 0.5) var fov_degrees: float = 34.0
 ## Part du déplacement du joueur suivie par la caméra (0 = cadrage fixe).
-@export_range(0.0, 0.3, 0.005) var follow_factor: float = 0.10
+@export_range(0.0, 1.0, 0.005) var follow_factor: float = 0.82
 ## Anticipation : la caméra regarde un peu devant le joueur (secondes de vitesse).
 @export_range(0.0, 1.0, 0.01) var lead_seconds: float = 0.35
 @export_range(1.0, 12.0, 0.1) var follow_smoothing: float = 4.0
 ## Décale le point visé vers le bas de l'écran (fraction de la largeur visible).
-@export_range(0.0, 0.3, 0.005) var frame_shift_ratio: float = 0.095
-## Part de la demi-largeur de l'écran occupée par l'arène et ses tourelles au pire cas.
-@export_range(0.85, 0.97, 0.005) var fit_target: float = 0.925
+@export_range(0.0, 0.3, 0.005) var frame_shift_ratio: float = 0.07
 
 @export_group("Caméra : mouvement dynamique")
 ## Inclinaison latérale max (degrés) quand le joueur court : sensation de vitesse.

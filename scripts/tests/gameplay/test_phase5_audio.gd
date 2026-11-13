@@ -91,7 +91,7 @@ func test_audio_voice_stealing_keeps_vital_sounds() -> void:
 	AudioManager.stop_all()
 	AudioManager._voice_limit = 2
 	AudioManager.play(&"step_sand")
-	AudioManager.play(&"enemy_spawn")
+	AudioManager.play(&"spawn_water")
 	var vital: bool = AudioManager.play(&"player_hurt")
 	_check(vital, "l'alerte de dégâts coupe un son d'ambiance plutôt que d'être perdue")
 	_check(AudioManager.active_voices() <= 2, "polyphonie respectée")

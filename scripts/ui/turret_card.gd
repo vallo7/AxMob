@@ -7,7 +7,9 @@ signal upgrade_pressed(turret_id: int)
 
 const CARD_SIZE: Vector2 = Vector2(500.0, 336.0)
 const MAX_LINES: int = 5
-const ICONS: Array[String] = ["axe_light", "axe_heavy", "axe_multi", "axe_pierce"]
+const ICONS: Array[String] = [
+	"model_axe_rapid", "model_axe_heavy", "model_axe_multi", "model_axe_pierce"
+]
 
 var turret_id: int = 0
 
@@ -54,7 +56,7 @@ func setup(id: int, data: TurretData) -> void:
 		line.size = Vector2(CARD_SIZE.x - 60.0, 30.0)
 		add_child(line)
 		_lines.append(line)
-	_button = AxButton.make("", "yellow", Vector2(CARD_SIZE.x - 36.0, 84.0), 34, "coin_s")
+	_button = AxButton.make("", "gold", Vector2(CARD_SIZE.x - 36.0, 84.0), 34, "coin_s")
 	_button.small = true
 	_button.position = Vector2(18.0, CARD_SIZE.y - 98.0)
 	_button.pressed.connect(func() -> void: upgrade_pressed.emit(turret_id))
@@ -94,4 +96,4 @@ func refresh(ctx: RunContext, upgrades: UpgradeManager) -> void:
 	_button.icon_name = "coin_s"
 	_button.text = "%d" % cost
 	# Pas assez de pièces : le bouton reste actif (le toast explique), mais passe en rouge.
-	_button.style = "yellow" if upgrades.can_upgrade(turret_id) else "red"
+	_button.style = "gold" if upgrades.can_upgrade(turret_id) else "stone"

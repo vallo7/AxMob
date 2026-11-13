@@ -97,7 +97,9 @@ func _try_spawn_next() -> void:
 		_spawn_timer = SPAWN_RETRY_DELAY
 		return
 	var order: SpawnOrder = _pending.pop_back()
-	EventBus.enemy_spawn_requested.emit(order.data, _pick_spawn_position(), order.level)
+	EventBus.enemy_spawn_requested.emit(
+		order.data, _pick_spawn_position(order.data.radius), order.level
+	)
 	_recent_spawns += 1.0
 	_spawn_timer = _spawn_interval / _update_pacing()
 	if _pending.is_empty():
@@ -128,20 +130,42 @@ func _update_pacing() -> float:
 	return pacing
 
 
-## Sur le bord de l'arène, le plus loin possible du joueur parmi quelques essais.
-func _pick_spawn_position() -> Vector2:
-	return _far_edge_point(_ctx.config.arena_radius - 1.0)
+## Point d'apparition d'un ennemi (phase 7) : il sort de l'EAU (rivage, eau peu profonde) ou du
+## SABLE
+## (à l'intérieur de l'île), jamais trop près du joueur ni dans un obstacle.
+func _pick_spawn_position(radius: float = 0.5) -> Vector2:
+	if _rng.randf() < _ctx.config.sand_spawn_chance:
+		return _sand_spawn_point(radius)
+	return _water_spawn_point(radius)
 
 
+## Le boss sort toujours de la mer, du côté le plus éloigné du joueur.
 func _boss_spawn_position() -> Vector2:
-	return _far_edge_point(_ctx.config.arena_radius - _table.boss.radius - 0.8)
+	return _water_spawn_point(_table.boss.radius, true)
 
 
-func _far_edge_point(radius: float) -> Vector2:
-	var best: Vector2 = Vector2(radius, 0.0)
+func _water_spawn_point(radius: float, farthest: bool = false) -> Vector2:
+	var best: Vector2 = _ctx.shape.water_point(0.0, radius)
 	var best_dist: float = -1.0
 	for i: int in SPAWN_ANGLE_TRIES:
-		var p: Vector2 = Vector2.from_angle(_rng.randf() * TAU) * radius
+		var p: Vector2 = _ctx.shape.water_point(_rng.randf() * TAU, radius)
+		var d: float = p.distance_to(_ctx.player_pos)
+		if not farthest and d >= _ctx.config.spawn_min_player_dist:
+			return p
+		if d > best_dist:
+			best_dist = d
+			best = p
+	return best
+
+
+func _sand_spawn_point(radius: float) -> Vector2:
+	var best: Vector2 = _ctx.shape.sand_point(0.0, 0.6)
+	var best_dist: float = -1.0
+	for i: int in SPAWN_ANGLE_TRIES:
+		var theta: float = _rng.randf() * TAU
+		var p: Vector2 = _ctx.shape.sand_point(theta, _rng.randf_range(0.3, 0.9))
+		if _ctx.obstacles.overlaps(p, radius, 0.6):
+			continue
 		var d: float = p.distance_to(_ctx.player_pos)
 		if d >= _ctx.config.spawn_min_player_dist:
 			return p

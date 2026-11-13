@@ -88,7 +88,7 @@ func _ready() -> void:
 	bottom.offset_top = -560.0
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(bottom)
-	_phase = UiArt.label("", 40, UiArt.WHITE, Color("#0F3C8A"))
+	_phase = UiArt.label("", 40, UiArt.WHITE, Color("#2F2A5C"))
 	_phase.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_phase.offset_top = 20.0
 	_phase.offset_bottom = 90.0
@@ -102,12 +102,12 @@ func _ready() -> void:
 	_bar.offset_top = 110.0
 	_bar.offset_bottom = 176.0
 	bottom.add_child(_bar)
-	_axe = UiArt.image("icons/axe", Vector2(120, 120))
+	_axe = UiArt.image("icons/model_axe_heavy", Vector2(120, 120))
 	_axe.size = Vector2(120, 120)
 	_axe.pivot_offset = Vector2(60, 60)
 	_axe.position = Vector2(60.0, 82.0)
 	bottom.add_child(_axe)
-	_percent = UiArt.label("0 %", 36, UiArt.WHITE, Color("#0F3C8A"))
+	_percent = UiArt.label("0 %", 36, UiArt.WHITE, Color("#2F2A5C"))
 	_percent.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_percent.offset_top = 190.0
 	_percent.offset_bottom = 250.0
@@ -136,7 +136,7 @@ func _ready() -> void:
 	_error_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_error_box.add_child(_error_label)
-	var retry: AxButton = AxButton.make(Loc.t("retry"), "green", Vector2(0, 120), 46, "replay")
+	var retry: AxButton = AxButton.make(Loc.t("retry"), "gold", Vector2(0, 120), 46, "replay")
 	retry.pressed.connect(func() -> void: retry_pressed.emit())
 	_error_box.add_child(retry)
 	var menu: AxButton = AxButton.make(Loc.t("main_menu"), "blue", Vector2(0, 104), 40, "home")

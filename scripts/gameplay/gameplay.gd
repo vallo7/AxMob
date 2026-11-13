@@ -47,6 +47,12 @@ var _feel_dir: FeelDirector
 @onready var _game_over: GameOverScreen = $Ui/GameOverScreen
 
 
+func _exit_tree() -> void:
+	# Partie quittée sans fin normale (retour au menu) : plus de point de reprise à écrire.
+	if SaveManager.active_ctx == ctx:
+		SaveManager.active_ctx = null
+
+
 func _ready() -> void:
 	get_tree().paused = false
 	_sun.rotation_degrees = Vector3(-62.0, 28.0, 0.0)
@@ -56,12 +62,13 @@ func _ready() -> void:
 	)
 	_feel = DataRegistry.feel()
 	ctx = RunContext.new(config, DataRegistry.balance())
+	SaveManager.active_ctx = ctx
 	# Améliorations permanentes achetées au menu : appliquées AVANT la création des tourelles.
 	ctx.bonuses = SaveManager.bonuses()
-	_arena.setup(config)
+	_turrets.setup(ctx, DataRegistry.turrets())
+	_arena.setup(config, ctx)
 	_player.setup(ctx)
 	_enemies.setup(ctx)
-	_turrets.setup(ctx, DataRegistry.turrets())
 	_projectiles.setup(ctx, _feel)
 	_fx.setup(ctx, _feel, _turret_positions())
 	_feel_dir = FeelDirector.new(_feel)
@@ -82,6 +89,10 @@ func _ready() -> void:
 	_panel.setup(ctx, _upgrades)
 	_hud.pause_pressed.connect(_toggle_pause)
 	_hud.upgrades_pressed.connect(_toggle_upgrades)
+	_hud.dock.buy_requested.connect(_on_upgrade_pressed)
+	# La barre du boss se dessine AU-DESSUS du HUD (ordre des noeuds), sous les panneaux et menus.
+	$Ui.move_child($Ui/BossBar, _hud.get_index() + 1)
+	_joystick.dynamic_exclusions = [_hud.dock.screen_rect]
 	_panel.close_pressed.connect(_close_upgrades)
 	_panel.upgrade_pressed.connect(_on_upgrade_pressed)
 	_pause_menu.resume_pressed.connect(_toggle_pause)

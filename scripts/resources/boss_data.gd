@@ -6,7 +6,7 @@ extends EnemyData
 ## Fractions de PV sous lesquelles on passe en phase 2, puis 3.
 @export var phase_thresholds: PackedFloat32Array = PackedFloat32Array([0.66, 0.33])
 @export_group("Onde de choc (attaque de base)")
-@export var shock_radius: float = 3.4
+@export var shock_radius: float = 4.6
 @export_group("Charge (phase 2+)")
 @export var charge_windup: float = 0.9
 @export var charge_speed: float = 14.0
